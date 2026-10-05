@@ -36,7 +36,7 @@ local placing = {}         -- playerNum -> cursor we're handling (aim or not)
 local driven = {}          -- playerNum -> cursor we drove this frame (has a position)
 local ghost = {}           -- playerNum -> { source = item, copy = item } shown as the preview
 local lootPaused = false
-local lastProbe, lastKeyProbe = 0, ""
+local lastProbe, lastKeyProbe, lastSkip = 0, "", 0
 
 local function now() return getTimestampMs() end
 
@@ -147,9 +147,15 @@ local function drive(drag, playerNum)
 
     if ViewpointFixesJava then ViewpointFixesJava.setDebug(VF.debugEnabled()) end
     if VF.debugEnabled() then
-        local keys = string.format("rotate key %s: game=%s raw=%s shift game=%s raw=%s",
-            Keyboard.getKeyName(rotateKey), tostring(gameDown), tostring(rawDown), tostring(gameShift),
-            tostring(rawShift))
+        local held = {}
+        if ViewpointFixesJava then
+            for k = 1, 237 do
+                if ViewpointFixesJava.rawKeyDown(k) then held[#held + 1] = k end
+            end
+        end
+        local keys = string.format("rotate key %s (%s/%s): game=%s raw=%s shift game=%s raw=%s; raw keys down: %s",
+            Keyboard.getKeyName(rotateKey), tostring(rotateKey), tostring(rotateAlt), tostring(gameDown),
+            tostring(rawDown), tostring(gameShift), tostring(rawShift), table.concat(held, ","))
         if keys ~= lastKeyProbe then
             lastKeyProbe = keys
             VF.log(ID, keys .. " rot=" .. tostring(drag.render3DItemRot))
@@ -169,10 +175,21 @@ end
 local function onDoTileBuilding(drag, isRender)
     if isRender or not isPlaceCursor(drag) then return end
     local playerNum = drag.player or 0
-    if activeCursor(playerNum) ~= drag then return end
+    if activeCursor(playerNum) ~= drag then
+        if VF.debugEnabled() and now() - lastSkip > 1000 then
+            lastSkip = now()
+            VF.log(ID, "place cursor not driven: vanillaDriving=" .. tostring(vanillaIsDriving(playerNum)) ..
+                " enabled=" .. tostring(VF.isEnabled(ID)) .. " item=" .. tostring(drag.items and drag.items[1] ~= nil))
+        end
+        return
+    end
     placing[playerNum] = drag
     pauseLoot(true)
     local ok, handled = VF.guard(ID, drive, drag, playerNum)
+    if ok and not handled and VF.debugEnabled() and now() - lastSkip > 1000 then
+        lastSkip = now()
+        VF.log(ID, "place cursor driven but no aim point (mouse and crosshair both nil)")
+    end
     if not (ok and handled) then
         driven[playerNum] = nil
         hidePreview(playerNum)
