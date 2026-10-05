@@ -32,7 +32,8 @@ Template:
 - Reported upstream: no
 
 ## VPF-002: furniture pick up / place / rotate cursor doesn't work
-- Status: fixing. v4 written after the third in-game test, **v4 not yet tested**
+- Status: **fixed (ours), verified in game 2026-10-05.** Pick up (radio, mattress), place (mattress, radio) and rotate (mattress `carpentry_02_78→76` E, `76→79` S) all traced to completion in 3D. Fridge rotate is greyed out (`canCreate=false`), which is vanilla's rule against rotating a container with items in it. Diagnostic watcher and trace hook removed after verification; the generic `Debug/Trace.lua` stays.
+- Not yet tested: controller (`OnDoTileBuilding3`), scrap/repair modes, multiplayer.
 - Viewpoint version seen: 0.1.5a-hotfix
 - Repro: enter Pick up / Place / Rotate (the moveables cursor, `ISMoveableCursor`) with the view on. User confirmed: no outline at all, clicks do nothing, broken in third person too.
 - Evidence (game bytecode, method names and call sites via `javap` on `projectzomboid.jar`):
