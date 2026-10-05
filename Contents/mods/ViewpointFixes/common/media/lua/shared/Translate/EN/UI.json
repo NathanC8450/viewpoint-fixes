@@ -4,5 +4,8 @@
     "UI_ViewpointFixes_Debug": "Debug logging",
     "UI_ViewpointFixes_Debug_Tooltip": "Writes extra [ViewpointFixes] lines to console.txt, for bug reports.",
     "UI_ViewpointFixes_VPF002": "VPF-002: Pick up / place / rotate cursor",
-    "UI_ViewpointFixes_VPF002_Tooltip": "Makes the furniture pick up, place and rotate cursor work in first and third person. The target tile follows the mouse cursor when it's shown, otherwise the crosshair."
+    "UI_ViewpointFixes_VPF002_Tooltip": "Makes the furniture pick up, place and rotate cursor work in first and third person. Its choices appear in Viewpoint's interaction menu; where there's no menu, the take key (F) accepts.",
+    "UI_ViewpointFixes_Facing": "(facing %1)",
+    "UI_ViewpointFixes_Current": "[current]",
+    "UI_ViewpointFixes_Accept": "[%1] accept"
 }

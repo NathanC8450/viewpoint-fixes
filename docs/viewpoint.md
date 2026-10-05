@@ -77,6 +77,12 @@ Permanent wraps:
 Temporary swaps, restored after a pcall:
 - `DebugContextMenu.doDebugMenu`, `getPlayerRadialMenu`, `ISVehicleMenu.getVehicleToInteractWith`, `ISTimedActionQueue.add`
 
+### Input quirks (observed in testing, 0.1.5a-hotfix)
+
+- With the view on, the left mouse button reads as **permanently held** both through the game (`IsoPlayer:isBuildButtonDown()`, i.e. the Attack binding) and raw (`isMouseButtonDown(0)`). Lua can't detect left clicks. Use Viewpoint's interaction menu (wrap `ViewpointInteract.harvest`) or a key.
+- `isoToScreenX/Y` is **not** 3D-projected: it still maps to iso screen space. Lua can't draw world-anchored overlays with it.
+- `Viewpoint.Mouse.worldX/worldY` returns the aimed world point (tracked the crosshair/mouse correctly in testing).
+
 ## Config and logs
 
 - `%USERPROFILE%\Zomboid\viewpoint-live.properties`: everything in the settings window (Delete key), including keys, graphics packs, memory pools, LOD and mouse. Edit by hand only with the game closed.
