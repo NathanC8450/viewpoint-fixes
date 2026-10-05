@@ -10,7 +10,7 @@ Cause: the vanilla cursor does almost all of its work in renderOpaqueObjectsInWo
        renderer, and while Viewpoint's loot menu shows on a container it takes R (take all) and Tab (loot
        window) from the game (LootMenu.keyDown/asks).
 Fix:   while that event isn't firing, run the cursor's own renderOpaqueObjectsInWorld each frame from the
-       still-running non-render OnDoTileBuilding2 call, with screenToIsoX/Y answering the aim point (Viewpoint's
+       OnPreUIDraw (every frame; OnDoTileBuilding2 only fires once), with screenToIsoX/Y answering the aim point (Viewpoint's
        mouse pick in cursor mode, else the crosshair hit from our Java bridge), isLeftDown cleared (else it locks
        to one square) and Render3DItem skipped. Vanilla then still handles the surface key, offsets and range.
        R / Shift+R go through vanilla handleRotate with the game's key state or the raw keyboard's (Java
@@ -172,27 +172,21 @@ local function drive(drag, playerNum)
     return true
 end
 
-local function onDoTileBuilding(drag, isRender)
-    if isRender or not isPlaceCursor(drag) then return end
-    local playerNum = drag.player or 0
-    if activeCursor(playerNum) ~= drag then
-        if VF.debugEnabled() and now() - lastSkip > 1000 then
-            lastSkip = now()
-            VF.log(ID, "place cursor not driven: vanillaDriving=" .. tostring(vanillaIsDriving(playerNum)) ..
-                " enabled=" .. tostring(VF.isEnabled(ID)) .. " item=" .. tostring(drag.items and drag.items[1] ~= nil))
-        end
-        return
-    end
+-- One frame for the player's place cursor. Driven from OnPreUIDraw: the non-render OnDoTileBuilding2 call only
+-- came once when the cursor started (test 4 log), so position, rotation and preview never updated.
+local function step(playerNum)
+    local drag = activeCursor(playerNum)
+    if not drag then return end
     placing[playerNum] = drag
     pauseLoot(true)
     local ok, handled = VF.guard(ID, drive, drag, playerNum)
-    if ok and not handled and VF.debugEnabled() and now() - lastSkip > 1000 then
-        lastSkip = now()
-        VF.log(ID, "place cursor driven but no aim point (mouse and crosshair both nil)")
-    end
     if not (ok and handled) then
         driven[playerNum] = nil
         hidePreview(playerNum)
+        if ok and VF.debugEnabled() and now() - lastSkip > 1000 then
+            lastSkip = now()
+            VF.log(ID, "place cursor active but no aim point (mouse and crosshair both nil)")
+        end
     end
 end
 
@@ -237,6 +231,7 @@ end
 
 -- Every frame: notice the cursor going away (placed, cancelled, fix switched off) and undo our side effects.
 local function onPreUIDraw()
+    step(0)
     local any = false
     for playerNum, drag in pairs(placing) do
         if activeCursor(playerNum) ~= drag then
@@ -253,7 +248,6 @@ end
 local function install()
     if VF.vpf003Installed or not ISPlace3DItemCursor then return end
     VF.vpf003Installed = true
-    Events.OnDoTileBuilding2.Add(onDoTileBuilding)
     Events.RenderOpaqueObjectsInWorld.Add(onRenderOpaqueObjectsInWorld)
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
