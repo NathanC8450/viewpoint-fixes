@@ -10,6 +10,8 @@ Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint w
 - Each fix: `client/ViewpointFixes/fixes/VPF_NNN_Name.lua`. It requires the core, registers itself, checks `isEnabled` at call time (so toggles apply live), and runs risky work through `guard`. Option labels go in `shared/Translate/EN/UI.json` as `UI_ViewpointFixes_VPFNNN` / `_Tooltip`.
 - Add a debug-only probe (throttled log of the values the fix depends on) to any fix built on unverified assumptions, so the user's first test run produces evidence.
 - Run `tools/luacheck.ps1` after every Lua edit. It compiles with the game's own Kahlua compiler.
+- **Understand the full vanilla path before changing code** (user feedback after VPF-002 v1–v4 each fixed one visible symptom and then hit the next). Read the whole vanilla flow end to end, and **trace it at runtime** rather than inferring: `client/ViewpointFixes/Debug/Trace.lua` provides `ViewpointFixes.Trace.wrap(tbl, label, {methods})` and `Trace.during(label, fn, ...)`, which logs nested calls with readable args/returns (`[ViewpointFixes] TRACE:`), only while Debug logging is ticked. `Debug/TraceMoveables.lua` is an example hook. For Java-side calls, ZombieBuddy's experimental mode adds `ZombieBuddy.Watches.Add(class, method)` and `zbinspect` / `zbmethods` (see its doc/LuaAPI.md, doc/DevDebugFunctions.md).
+- Before blaming Viewpoint or our fix, get a **baseline**: does the behaviour also fail in 2D/iso view, and with our fix's toggle off?
 - Server-folder vanilla Lua (e.g. `BuildingObjects/*`) loads *after* client files. Don't `require` it from client files; reference it at runtime (OnGameStart or later).
 
 ## Hard rules (licence)
