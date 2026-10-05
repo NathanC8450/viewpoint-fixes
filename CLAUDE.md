@@ -43,7 +43,7 @@ When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint D
 - Game: `C:\SteamLibrary\steamapps\common\ProjectZomboid` (B42.21, its own Java runtime is **25.0.1**). The vanilla Lua is in `media/lua`, scripts in `media/scripts/generated`. These are large, so grep specific paths and never the whole game folder.
 - Workshop content: `C:\SteamLibrary\steamapps\workshop\content\108600\<id>`. Viewpoint is 3809306528, ZombieBuddy 3619862853, ZombieBuddyFix 3809837933, Controller Aim 3811577340.
 - Java fixes need **JDK 25** (only JDK 17 is installed at `C:\Program Files\Eclipse Adoptium`). Compile with `--release 25` against `projectzomboid.jar` + `ZombieBuddy.jar` (in the workshop `libs/` folder, or the game folder). The jar path should be `42/media/java/client/` for a client-only fix, and mod.info needs `require=\ZombieBuddy,\Viewpoint`, `javaJarFile` and `javaPkgName`. ZombieBuddy asks the user to approve new Java mods.
-- Logs: `%USERPROFILE%Zomboidnsole.txt` (overwritten each launch; older runs are in `Zomboidogsogs_<date>`). **read it yourself after the user says they tested; never ask them to paste logs or run tools/logs.ps1.** grep for `[viewpointfixes]`, `[viewpoint]`, `error`, `(mod:`. the project is junction-linked into `%userprofile%zomboidworkshopviewpointfixes` (`tools/link.ps1`).
+- Logs: `%USERPROFILE%\Zomboid\console.txt` (overwritten each launch; older runs are in `Zomboid\Logs\logs_<date>`). **Read it yourself after the user says they tested. Never ask them to paste logs or run tools/logs.ps1.** Grep for `[ViewpointFixes]`, `[Viewpoint]`, `ERROR`, `(MOD:`. The project is junction-linked into `%USERPROFILE%\Zomboid\Workshop\ViewpointFixes` (`tools/link.ps1`).
 
 ## Project Zomboid B42 conventions
 

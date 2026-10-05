@@ -34,7 +34,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 1. Link once: `.\tools\link.ps1`.
 2. Before launching: `.\tools\luacheck.ps1` (needs `javac` on PATH; uses the game's bundled Java to run).
 3. Launch PZ with `-debug`, then enable **Viewpoint Fixes (Unofficial)** under Mods, alongside Viewpoint.
-4. Tick **Debug logging** on the mod's options page for per-fix probe lines. Everything lands in `%USERPROFILE%Zomboidnsole.txt`; `.	oolsogs.ps1` is optional, for watching it live.
+4. Tick **Debug logging** on the mod's options page for per-fix probe lines. Everything lands in `%USERPROFILE%\Zomboid\console.txt`; `.\tools\logs.ps1` is optional, for watching it live.
 5. Lua changes need the game back at the main menu (or a restart) to reload.
 
 ## Publishing
