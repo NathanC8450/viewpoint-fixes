@@ -1,7 +1,7 @@
 name=My First Mod
 id=MyFirstMod
 author=nathanc
-description=A starter mod: adds a Lucky Coin item, a recipe to make it, and a context-menu action.
+description=
 modversion=0.1.0
 poster=poster.png
 icon=icon.png

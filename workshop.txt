@@ -1,5 +1,5 @@
 version=1
 title=My First Mod
-description=A starter mod: adds a Lucky Coin item, a recipe to make it, and a context-menu action.
-tags=Build 42;Items
+description=
+tags=Build 42
 visibility=unlisted

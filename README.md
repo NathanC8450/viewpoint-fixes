@@ -1,6 +1,6 @@
 # My First Mod
 
-A Project Zomboid **Build 42** mod. It adds a Lucky Coin item, a recipe that turns a Button into a coin, and a "Flip Coin" option in the coin's right-click menu.
+A Project Zomboid **Build 42** mod.
 
 ## Layout
 
@@ -32,8 +32,6 @@ Keep your Lua inside a `MyFirstMod/` subfolder of each lua dir so the file names
 3. Main menu → **Mods** → enable *My First Mod* → start a sandbox game.
 4. Follow the log in a terminal: `.\tools\logs.ps1`
 5. After editing Lua, you can reload a single file from the debug Lua console. Script `.txt`, translation, and texture changes need a return to the main menu.
-
-Quick test: in debug mode, open the Items List cheat, spawn `MyFirstMod.LuckyCoin`, right-click it, and choose **Flip Coin**.
 
 ## Renaming the mod
 
