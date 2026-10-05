@@ -2,19 +2,24 @@
 VPF-002: furniture pick up / place / rotate cursor (ISMoveableCursor) does nothing with Viewpoint's view on.
 
 Bug:   no tile outline, and clicks never pick up, place or rotate. Happens in first and third person.
-Cause: the game validates and draws the cursor only from its iso world render, via
-       IsoCell.DoBuilding(player, true) -> OnDoTileBuilding2(drag, true, ...). Viewpoint replaces that render,
-       so only UIManager.update's DoBuilding(0, false) arrives. Vanilla DoTileBuilding sets canBeBuild only
-       on render calls, so tryBuild never runs, and its tile comes from the iso screen->tile mapping.
-Fix:   when render calls stop arriving, take over the non-render call. Pick the tile from Viewpoint's
-       3D mouse point (or the tile in front of the player), validate it, and draw our own marker.
-       Vanilla runs untouched whenever render calls arrive (iso view, or if Viewpoint fixes this itself).
+Cause: 1. The game validates and draws the cursor only from its iso world render, via
+          IsoCell.DoBuilding(player, true) -> OnDoTileBuilding2(drag, true, ...). Viewpoint replaces that
+          render, so only UIManager.update's DoBuilding(0, false) arrives, and canBeBuild is never set.
+       2. Vanilla reads clicks through IsoPlayer:isBuildButtonDown/Released, i.e. the Attack binding
+          "in world". Under Viewpoint it reads as held the whole time (seen in testing), so a release
+          never comes, and the held state pins the cursor to one square.
+       3. The ghost sprite and rotate arrow are drawn in iso screen space; isoToScreenX/Y is not 3D-aware
+          under Viewpoint (seen in testing), so they can't be shown in the 3D view.
+Fix:   while render calls are missing, handle the cursor ourselves: tile from Viewpoint's 3D mouse point
+       (else the tile in front of the player), vanilla isValid for it, our own click detection on the raw
+       left mouse button, then vanilla tryBuild. A label under the crosshair names the mode, object, facing
+       and whether it can be done. Vanilla runs untouched whenever render calls arrive.
 Seen:  Viewpoint 0.1.5a-hotfix, game 42.21.
-Retire when Viewpoint drives DoBuilding's render pass (or validation) itself.
+Retire when Viewpoint drives DoBuilding's render pass and build-button input itself.
 ]]
 require "ViewpointFixes/ViewpointFixes"
--- ISMoveableCursor and DoTileBuilding live in the server Lua folder, which loads after client files,
--- so they are only referenced at runtime (from OnGameStart on).
+-- ISMoveableCursor lives in the server Lua folder, which loads after client files,
+-- so it is only referenced at runtime (from OnGameStart on).
 
 local VF = ViewpointFixes
 local ID = "VPF_002"
@@ -25,10 +30,10 @@ VF.register({ id = ID, label = "UI_ViewpointFixes_VPF002", tooltip = "UI_Viewpoi
 local RENDER_STALE_MS = 500
 
 local lastRenderCall = {} -- playerNum -> timestamp of the last isRender=true call
-local shown = {}          -- playerNum -> what to draw this frame
+local shown = {}          -- playerNum -> drag to label this frame
+local wasDown = {}        -- playerNum -> left button state last frame
+local pressedOn = {}      -- playerNum -> drag that was active when the button went down
 local lastProbe = 0
-
-local function noRotateMouse() end
 
 local function isMoveableCursor(drag)
     local mt = getmetatable(drag)
@@ -44,6 +49,15 @@ local function vanillaIsRendering(playerNum)
     return t ~= nil and getTimestampMs() - t < RENDER_STALE_MS
 end
 
+-- Same test vanilla's ISMoveableCursor uses to ignore clicks on UI.
+local function mouseOverUI()
+    local uis = UIManager.getUI()
+    for i = 1, uis:size() do
+        if uis:get(i - 1):isMouseOver() then return true end
+    end
+    return false
+end
+
 -- Viewpoint's 3D mouse point (the same one its ISCoordConversion.ToWorld wrap uses). Falls back to
 -- the tile in front of the player when Viewpoint doesn't offer one.
 local function targetTile(player)
@@ -51,50 +65,52 @@ local function targetTile(player)
     local mouse = Viewpoint and Viewpoint.Mouse
     local wx = mouse and mouse.worldX()
     local wy = mouse and mouse.worldY()
-    if wx and wy then return math.floor(wx), math.floor(wy), z, "viewpoint", wx, wy end
+    if wx and wy then return math.floor(wx), math.floor(wy), z, "viewpoint" end
     local dir = player:getForwardDirection()
     return math.floor(player:getX() + dir:getX()), math.floor(player:getY() + dir:getY()), z, "facing"
 end
 
-local function probe(playerNum, player, drag, tx, ty, tz, source, wx, wy)
+local function probe(player, drag, playerNum, tx, ty, tz, source, down, clicked, overUI)
     if not VF.debugEnabled() then return end
     local now = getTimestampMs()
-    if now - lastProbe < 1000 then return end
+    if not clicked and now - lastProbe < 1000 then return end
     lastProbe = now
     VF.log(ID, string.format(
-        "mode=%s source=%s tile=%d,%d,%d viewpointMouse=%s,%s player=%.2f,%.2f,%.2f mouse=%d,%d " ..
-        "screenOfTile=%.0f,%.0f canBeBuild=%s canCreate=%s buttonDown=%s",
-        tostring(ISMoveableCursor.mode[playerNum]), source, tx, ty, tz, tostring(wx), tostring(wy),
-        player:getX(), player:getY(), player:getZ(), getMouseX(), getMouseY(),
-        isoToScreenX(playerNum, tx + 0.5, ty + 0.5, tz), isoToScreenY(playerNum, tx + 0.5, ty + 0.5, tz),
-        tostring(drag.canBeBuild), tostring(drag.canCreate), tostring(player:isBuildButtonDown())))
+        "mode=%s source=%s tile=%d,%d,%d canBeBuild=%s canCreate=%s rawDown=%s attackDown=%s clicked=%s overUI=%s",
+        tostring(ISMoveableCursor.mode[playerNum]), source, tx, ty, tz, tostring(drag.canBeBuild),
+        tostring(drag.canCreate), tostring(down), tostring(player:isBuildButtonDown()), tostring(clicked),
+        tostring(overUI)))
 end
 
 local function takeOver(drag, playerNum)
     local player = getSpecificPlayer(playerNum)
     if not player then return false end
-    local tx, ty, tz, source, wx, wy = targetTile(player)
+    local tx, ty, tz, source = targetTile(player)
     local square = getCell():getGridSquare(tx, ty, tz)
     if not square and getWorld():isValidSquare(tx, ty, tz) then
         square = getCell():createNewGridSquare(tx, ty, tz, true)
     end
 
-    -- Dragging the mouse to rotate maps the 2D mouse onto the iso grid, which is meaningless in 3D.
-    -- The rotate key still works.
-    drag.rotateMouse = noRotateMouse
+    -- Vanilla state that its own (stuck) button handling would otherwise drive.
+    drag.isLeftDown = false
+    drag.build = false
+    drag.square = square
+    drag.canBeBuild = square ~= nil and drag:isValid(square, drag.north) == true
+    if square then drag.renderX, drag.renderY, drag.renderZ = tx, ty, tz end
+    shown[playerNum] = drag
 
-    -- What vanilla's render pass would have done: validate the square DoTileBuilding will use
-    -- (it keeps the clicked square while the button is held).
-    local check = ((drag.isLeftDown or drag.build) and drag.square) or square
-    drag.canBeBuild = check ~= nil and drag:isValid(check, drag.north) == true
-    if check then
-        drag.renderX, drag.renderY, drag.renderZ = check:getX(), check:getY(), check:getZ()
+    -- A click is a press and release of the left button that both happen while this cursor is out,
+    -- so the click that chose "Pick up" in a menu doesn't count.
+    local down = isMouseButtonDown(0)
+    if down and not wasDown[playerNum] then pressedOn[playerNum] = drag end
+    local clicked = wasDown[playerNum] and not down and pressedOn[playerNum] == drag
+    wasDown[playerNum] = down
+    local overUI = clicked and mouseOverUI()
+
+    probe(player, drag, playerNum, tx, ty, tz, source, down, clicked, overUI)
+    if clicked and not overUI and drag.canBeBuild then
+        drag:tryBuild(tx, ty, tz)
     end
-    shown[playerNum] = check and { x = check:getX(), y = check:getY(), z = check:getZ(), drag = drag } or nil
-
-    probe(playerNum, player, drag, tx, ty, tz, source, wx, wy)
-    -- The non-render call reads the mouse button and runs tryBuild when canBeBuild is set.
-    DoTileBuilding(drag, false, tx, ty, tz, square)
     return true
 end
 
@@ -103,48 +119,44 @@ local function onDoTileBuilding(drag, isRender, x, y, z, square)
     if isRender then
         lastRenderCall[playerNum] = getTimestampMs()
         shown[playerNum] = nil
-        if drag.rotateMouse == noRotateMouse then drag.rotateMouse = nil end
     elseif VF.isEnabled(ID) and isMoveableCursor(drag) and not vanillaIsRendering(playerNum) then
         local ok, handled = VF.guard(ID, takeOver, drag, playerNum)
         if ok and handled then return end
         shown[playerNum] = nil
-        if drag.rotateMouse == noRotateMouse then drag.rotateMouse = nil end
     end
     return DoTileBuilding(drag, isRender, x, y, z, square)
 end
 
--- Screen-space feedback: the tile projected to the screen, and a label under the crosshair.
-local function drawMarker(playerNum, s)
-    local drag = s.drag
+local function modeTitle(mode)
+    for i, tag in ipairs(ISMoveableCursor.modes.tags) do
+        if tag == mode then return ISMoveableCursor.modes.titles[i] end
+    end
+    return tostring(mode)
+end
+
+-- "Rotate: Wooden Chair (facing N)", green when it can be done, red when not.
+local function drawLabel(playerNum, drag)
     if getCell():getDrag(playerNum) ~= drag then
         shown[playerNum] = nil
         return
     end
-    local valid = drag.canBeBuild == true
-    local r, g, b = valid and 0.3 or 1, valid and 1 or 0.25, valid and 0.3 or 0.25
-    local renderer = getRenderer()
-    local function sx(x, y) return isoToScreenX(playerNum, x, y, s.z) end
-    local function sy(x, y) return isoToScreenY(playerNum, x, y, s.z) end
-    local x, y = s.x, s.y
-    renderer:renderPoly(sx(x, y), sy(x, y), sx(x + 1, y), sy(x + 1, y),
-        sx(x + 1, y + 1), sy(x + 1, y + 1), sx(x, y + 1), sy(x, y + 1), r, g, b, 0.35)
-
     local mode = ISMoveableCursor.mode[playerNum]
-    local title = mode
-    for i, tag in ipairs(ISMoveableCursor.modes.tags) do
-        if tag == mode then title = ISMoveableCursor.modes.titles[i] end
+    local props = drag.currentMoveProps
+    local text = modeTitle(mode)
+    if props and props.name then text = text .. ": " .. props.name end
+    if props and props.sprite and (mode == "place" or mode == "rotate") then
+        local facing = props:getFaceDirectionFromSpriteName(props.sprite:getName())
+        if facing then text = text .. " (facing " .. tostring(facing) .. ")" end
     end
-    local text = tostring(title)
-    if drag.currentMoveProps and drag.currentMoveProps.name then
-        text = text .. ": " .. drag.currentMoveProps.name
-    end
+    local ok = drag.canBeBuild == true and drag.canCreate ~= false
+    local r, g, b = ok and 0.4 or 1, ok and 1 or 0.35, ok and 0.4 or 0.35
     getTextManager():DrawStringCentre(UIFont.Medium, getCore():getScreenWidth() / 2,
         getCore():getScreenHeight() / 2 + 40, text, r, g, b, 1)
 end
 
 local function onPreUIDraw()
-    for playerNum, s in pairs(shown) do
-        if not VF.guard(ID, drawMarker, playerNum, s) then shown[playerNum] = nil end
+    for playerNum, drag in pairs(shown) do
+        if not VF.guard(ID, drawLabel, playerNum, drag) then shown[playerNum] = nil end
     end
 end
 

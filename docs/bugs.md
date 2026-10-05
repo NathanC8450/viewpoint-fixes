@@ -32,7 +32,7 @@ Template:
 - Reported upstream: no
 
 ## VPF-002: furniture pick up / place / rotate cursor doesn't work
-- Status: fixing. First version written, **not yet tested in game**
+- Status: fixing. v2 written after the first in-game test, **v2 not yet tested**
 - Viewpoint version seen: 0.1.5a-hotfix
 - Repro: enter Pick up / Place / Rotate (the moveables cursor, `ISMoveableCursor`) with the view on. User confirmed: no outline at all, clicks do nothing, broken in third person too.
 - Evidence (game bytecode, method names and call sites via `javap` on `projectzomboid.jar`):
@@ -46,7 +46,12 @@ Template:
   - validates it with `drag:isValid`;
   - calls vanilla `DoTileBuilding(drag, false, …)` with that tile, so the click → `tryBuild` path runs.
   It disables mouse-drag rotation (an iso screen mapping); the rotate key still works. Feedback is drawn on `OnPreUIDraw`: a tile quad projected with `isoToScreenX/Y`, plus a "Mode: object" label under the crosshair, green when valid and red otherwise. Controller (`OnDoTileBuilding3`) isn't handled yet.
-- To verify in game (with "Debug logging" ticked, the probe logs once a second): source=viewpoint vs facing; the tile tracks the crosshair and mouse cursor; `buttonDown` goes true on left click; whether the projected quad lands on the tile (`screenOfTile`). If it doesn't, Viewpoint isn't projecting `isoToScreenX/Y` and we need another way to draw.
+- **Test 1 (2026-10-05, v1)**: user saw a crude pick-up indication but couldn't execute anything, and rotate worked badly. The probe (21 lines) showed:
+  - `source=viewpoint` every time; `Viewpoint.Mouse.worldX/Y` tracks the aim and `canBeBuild=true`. **Targeting works.**
+  - `buttonDown=true` in *every* sample, even with the mouse still for seconds. `IsoPlayer:isBuildButtonDown()` = `CharacterInputComponent.isBuildButtonDown` → `CharacterInputKeyBinding.Attack.isKeyDownInWorld()` (keyboard/mouse mode), and it reads as permanently held under Viewpoint. `isBuildButtonReleased` uses a separate `TimedInputHandler build`, which never fires. So vanilla never builds, and `isLeftDown` stays true, pinning the cursor to its first square (hence bad rotate). *Why* Attack reads as held is inferred (Viewpoint drives attack input itself), not verified.
+  - `screenOfTile` (from `isoToScreenX/Y`) doesn't match the mouse position Viewpoint's 3D point came from. **`isoToScreenX/Y` is not 3D-projected under Viewpoint**, so the projected quad was in the wrong place.
+- **v2 changes**: no longer calls vanilla `DoTileBuilding` during takeover. Instead it sets `isLeftDown/build=false`, sets `square`, runs `isValid`, detects a click itself with `isMouseButtonDown(0)` edges (the press must start while this cursor is out, so the menu click that opened the mode doesn't count, and clicks over UI are ignored), then calls `drag:tryBuild`. The quad is removed. The label now adds the facing for place/rotate (`currentMoveProps:getFaceDirectionFromSpriteName`) and goes red when `canCreate` is false. Rotate direction cycles with the vanilla rotate key (`ISMoveableCursor:rotateKey`, which bumps `objectIndex`).
+- To verify (v2 probe logs every click plus once a second): `rawDown` toggles with real clicks (if it's also stuck, raw mouse input is captured too); `clicked=true` leads to the action running; whether a click also makes the character attack; whether the rotate key reaches the cursor (Viewpoint binds R to loot "take all").
 - Open questions (need an in-game probe): does `Viewpoint.Mouse.worldX/worldY` give the aimed world point in first person (crosshair) and third person? Is `isoToScreenX/Y` projected by Viewpoint into 3D screen space (usable to outline the tile)? Is `RenderGhostTileColor` visible at all? Does the B42 build/craft placement cursor (also `ISBuildingObject`) break the same way?
 - Retire when: Viewpoint drives `DoBuilding` render/validation itself.
 - Reported upstream: no
