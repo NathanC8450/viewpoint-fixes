@@ -160,6 +160,29 @@ local function watchAction(action)
         VF.debug(ID, "action " .. tostring(self.mode) .. " performed")
         return performAction(self)
     end
+
+    -- complete() is where the world actually changes (pickup / place / rotate swap sprites). Log the
+    -- square's sprites either side, so we can tell "didn't change" apart from "changed but not redrawn".
+    local function spritesOn(square)
+        local names = {}
+        local objects = square and square:getObjects()
+        for i = 0, (objects and objects:size() or 0) - 1 do
+            local sprite = objects:get(i):getSprite()
+            table.insert(names, sprite and tostring(sprite:getName()) or "?")
+        end
+        return table.concat(names, ",")
+    end
+    local complete = action.complete
+    action.complete = function(self)
+        local before = spritesOn(self.square)
+        local result = complete(self)
+        w.state = "completed"
+        VF.debug(ID, string.format("action %s complete: orig=%s target=%s direction=%s cursorFacing=%s " ..
+            "result=%s square before=[%s] after=[%s]", tostring(self.mode), tostring(self.origSpriteName),
+            tostring(self.moveProps and self.moveProps.spriteName), tostring(self.direction),
+            tostring(self.cursorFacing), tostring(result), before, spritesOn(self.square)))
+        return result
+    end
 end
 
 -- Hooks the ISMoveablesAction that tryBuild just queued (if any) and reports what the queue holds.
