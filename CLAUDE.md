@@ -2,16 +2,16 @@
 
 This repo holds **unofficial fix mods for Project Viewpoint**, the first/third-person 3D mod by ellu (workshop 3809306528, mod id `Viewpoint`). It is *not* PZ3D. The user plays with Viewpoint, finds bugs, and brings them here one at a time.
 
-Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint works, its Lua/Java API surface and ecosystem. Then [docs/bugs.md](docs/bugs.md) for the bug log and status. Update both as you learn more.
+Backlog / known issues: [docs/backlog.md](docs/backlog.md). Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint works, its Lua/Java API surface and ecosystem. Then [docs/bugs.md](docs/bugs.md) for the bug log and status. Update both as you learn more.
 
-**Shape (decided 2026-10-05):** one mod, `ViewpointFixes` ("Viewpoint Fixes (Unofficial)"), with **a toggle per fix** on its Mod Options page. Project folder, mod id and Workshop junction are all `ViewpointFixes`.
+**Shape (decided 2026-10-05):** one mod, `ViewpointFixes` ("Viewpoint Fixes (Unofficial)"), whose fixes are always on (no per-fix toggles; changed 2026-10-05). Its Mod Options page has one player-facing option, **placement helper text** (off by default). Project folder, mod id and Workshop junction are all `ViewpointFixes`.
 
-- Core: `Contents/mods/ViewpointFixes/common/media/lua/client/ViewpointFixes/ViewpointFixes.lua`. It provides `ViewpointFixes.register{id,label,tooltip}`, `isEnabled(id)`, `guard(id, fn, ...)` (pcall; an error switches the fix off for the session), `log`, `debug`, and `debugEnabled()` (the "Debug logging" tickbox).
-- Each fix: `client/ViewpointFixes/fixes/VPF_NNN_Name.lua`. It requires the core, registers itself, checks `isEnabled` at call time (so toggles apply live), and runs risky work through `guard`. Option labels go in `shared/Translate/EN/UI.json` as `UI_ViewpointFixes_VPFNNN` / `_Tooltip`.
+- Core: `Contents/mods/ViewpointFixes/common/media/lua/client/ViewpointFixes/ViewpointFixes.lua`. It provides `ViewpointFixes.register{id}`, `isEnabled(id)`, `guard(id, fn, ...)` (pcall; an error switches the fix off for the session), `log`, `debug`, `debugEnabled()` (true when the game is launched with `-debug`; there is no Debug option), and `helperTextEnabled()` (the helper-text option; gate any on-screen helper text on it).
+- Each fix: `client/ViewpointFixes/fixes/VPF_NNN_Name.lua`. It requires the core, registers itself, checks `isEnabled` at call time (false only after the fix errored), and runs risky work through `guard`. Option labels go in `shared/Translate/EN/UI.json`. Keep the options page player-facing: no developer toggles.
 - Add a debug-only probe (throttled log of the values the fix depends on) to any fix built on unverified assumptions, so the user's first test run produces evidence.
 - Run `tools/luacheck.ps1` after every Lua edit. It compiles with the game's own Kahlua compiler.
 - **Understand the full vanilla path before changing code** (user feedback after VPF-002 v1–v4 each fixed one visible symptom and then hit the next). Read the whole vanilla flow end to end, and **trace it at runtime** rather than inferring: `client/ViewpointFixes/Debug/Trace.lua` provides `ViewpointFixes.Trace.wrap(tbl, label, {methods})` and `Trace.during(label, fn, ...)`, which logs nested calls with readable args/returns (`[ViewpointFixes] TRACE:`), only while Debug logging is ticked. Example hook (removed after use, see git history `27056dc`): `Debug/TraceMoveables.lua` armed it around every `ISMoveablesAction:complete` and wrapped the `ISMoveableSpriteProps` pickup/place/rotate functions. For Java-side calls, ZombieBuddy's experimental mode adds `ZombieBuddy.Watches.Add(class, method)` and `zbinspect` / `zbmethods` (see its doc/LuaAPI.md, doc/DevDebugFunctions.md).
-- Before blaming Viewpoint or our fix, get a **baseline**: does the behaviour also fail in 2D/iso view, and with our fix's toggle off?
+- Before blaming Viewpoint or our fix, get a **baseline**: does the behaviour also fail in 2D/iso view, and with our fix off (comment out its `VF.register` call, or reproduce in 2D)?
 - Server-folder vanilla Lua (e.g. `BuildingObjects/*`) loads *after* client files. Don't `require` it from client files; reference it at runtime (OnGameStart or later).
 
 ## Hard rules (licence)
@@ -31,7 +31,7 @@ Pick the lowest layer that works:
 
 Every fix must:
 - **Diagnose first.** Get evidence (a console.txt trace, repro steps) and write the VPF entry in docs/bugs.md before writing code. Don't guess at Viewpoint internals; say what's verified vs inferred.
-- **Be self-contained.** One file per fix, named `VPF_NNN_ShortName.lua` (or a Java class `VPF_NNN_*`), toggleable, with a header comment covering the bug, cause, Viewpoint version and retire condition.
+- **Be self-contained.** One file per fix, named `VPF_NNN_ShortName.lua` (or a Java class `VPF_NNN_*`), with a header comment covering the bug, cause, Viewpoint version and retire condition.
 - **Guard and degrade.** Check that the target exists before wrapping, wrap only once (a guard flag), call the original, and use pcall where a failure could cascade. After an unexpected error the fix turns itself off and logs once, rather than spamming or breaking Viewpoint.
 - **Apply at the right time.** Viewpoint's Lua is in `42/media/lua/client` and installs some wraps at OnGameBoot/OnGameStart. Don't rely on file load order. Apply our wraps in an event after Viewpoint's, or lazily.
 - **Log** through `ViewpointFixes.log/debug` (prefix `[ViewpointFixes] VPF_NNN:`), so `tools/logs.ps1` picks it up.

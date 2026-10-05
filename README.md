@@ -1,9 +1,10 @@
 # Viewpoint Fixes (Unofficial)
 
-Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528) (Project Zomboid **Build 42.21**). One mod, with each fix toggleable under **Options → Mods → Viewpoint Fixes**. Not affiliated with the Viewpoint authors, and contains no Viewpoint code.
+Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528) (Project Zomboid **Build 42.21**). One mod; the fixes are always on. **Options → Mods → Viewpoint Fixes** has one option, the placement helper text (off by default). Not affiliated with the Viewpoint authors, and contains no Viewpoint code.
 
 - [docs/viewpoint.md](docs/viewpoint.md): how Viewpoint works and what we can hook
 - [docs/bugs.md](docs/bugs.md): bug log (VPF-NNN) and fix status
+- [docs/backlog.md](docs/backlog.md): known issues and to-do list
 
 ## Fixes
 
@@ -28,7 +29,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
    ├─ 42/media/java/client/     ViewpointFixes.jar (built, committed)
    └─ common/media/lua/
       ├─ client/ViewpointFixes/
-      │  ├─ ViewpointFixes.lua  registration, per-fix toggles, logging, error guard
+      │  ├─ ViewpointFixes.lua  registration, options page, logging, error guard
       │  └─ fixes/VPF_NNN_*.lua one file per fix
       └─ shared/Translate/EN/   UI.json (option labels)
 ```
@@ -38,7 +39,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 1. Link once: `.\tools\link.ps1`.
 2. Before launching: `.\tools\luacheck.ps1` (needs `javac` on PATH; uses the game's bundled Java to run). After Java changes: `.\tools\build-java.ps1`, then restart the game (Java doesn't reload at the main menu). ZombieBuddy asks once to approve a changed jar.
 3. Launch PZ with `-debug`, then enable **Viewpoint Fixes (Unofficial)** under Mods, alongside Viewpoint.
-4. Tick **Debug logging** on the mod's options page for per-fix probe lines. Everything lands in `%USERPROFILE%\Zomboid\console.txt`; `.\tools\logs.ps1` is optional, for watching it live.
+4. Debug logging follows the `-debug` launch flag (per-fix probe lines). Everything lands in `%USERPROFILE%\Zomboid\console.txt`; `.\tools\logs.ps1` is optional, for watching it live.
 5. Lua changes need the game back at the main menu (or a restart) to reload.
 
 ## Publishing

@@ -27,7 +27,7 @@ require "ViewpointFixes/ViewpointFixes"
 local VF = ViewpointFixes
 local ID = "VPF_002"
 
-VF.register({ id = ID, label = "UI_ViewpointFixes_VPF002", tooltip = "UI_ViewpointFixes_VPF002_Tooltip" })
+VF.register({ id = ID })
 
 -- Render calls newer than this mean the game is drawing the cursor itself, so we stay out of the way.
 local RENDER_STALE_MS = 500
@@ -270,6 +270,7 @@ end
 
 -- Fallback label, only while Viewpoint's menu isn't showing.
 local function drawLabel(playerNum, t)
+    if not VF.helperTextEnabled() then return end
     if activeCursor(playerNum) ~= t.drag or menuShowing(playerNum) then return end
     local drag = t.drag
     local mode = ISMoveableCursor.mode[playerNum]

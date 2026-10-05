@@ -1,5 +1,5 @@
--- Shared plumbing for every fix: registration, one toggle per fix on the Mod Options page,
--- logging, and an error guard that switches a misbehaving fix off instead of breaking the game.
+-- Shared plumbing for every fix: registration, the Mod Options page (one player-facing option: the placement
+-- helper text), logging, and an error guard that switches a misbehaving fix off instead of breaking the game.
 ViewpointFixes = ViewpointFixes or { fixes = {}, order = {} }
 local VF = ViewpointFixes
 
@@ -9,34 +9,34 @@ function VF.log(fixId, msg)
     print("[ViewpointFixes] " .. (fixId and (fixId .. ": ") or "") .. tostring(msg))
 end
 
+-- Debug logging follows the game's own -debug launch flag; there's no option for players to wade through.
 function VF.debugEnabled()
-    return VF.debugOption ~= nil and VF.debugOption:getValue() == true
+    return isDebugEnabled() == true
+end
+
+-- The "placement helper text" option (off by default): item name, rotation and key hints drawn on screen.
+function VF.helperTextEnabled()
+    return VF.helperOption ~= nil and VF.helperOption:getValue() == true
 end
 
 function VF.debug(fixId, msg)
     if VF.debugEnabled() then VF.log(fixId, msg) end
 end
 
-local function addOption(fix)
-    fix.option = VF.page:addTickBox(fix.id, getText(fix.label), fix.default ~= false, getText(fix.tooltip))
-end
-
--- fix = { id = "VPF_002", label = "<translation key>", tooltip = "<translation key>", default = true }
+-- fix = { id = "VPF_002" }. Fixes are always on; one that errors switches itself off for the session (guard).
 function VF.register(fix)
     if VF.fixes[fix.id] then return VF.fixes[fix.id] end
     fix.failed = false
     VF.fixes[fix.id] = fix
     table.insert(VF.order, fix)
-    if VF.page then addOption(fix) end
     return fix
 end
 
--- True when the fix exists, is ticked, and hasn't failed this session.
+-- True when the fix exists and hasn't failed this session.
 function VF.isEnabled(id)
     local fix = VF.fixes[id]
     if not fix or fix.failed then return false end
-    if fix.option then return fix.option:getValue() == true end
-    return fix.default ~= false
+    return true
 end
 
 -- Calls fn(...) under pcall. On error the fix is switched off for the session and the error logged once.
@@ -76,10 +76,8 @@ local function installOptions()
     if VF.page or not (PZAPI and PZAPI.ModOptions) then return end
     VF.page = PZAPI.ModOptions:create(VF.ID, getText("UI_ViewpointFixes_Page"))
     VF.page:addDescription("UI_ViewpointFixes_Description")
-    for _, fix in ipairs(VF.order) do addOption(fix) end
-    VF.page:addSeparator()
-    VF.debugOption = VF.page:addTickBox("debug", getText("UI_ViewpointFixes_Debug"), false,
-        getText("UI_ViewpointFixes_Debug_Tooltip"))
+    VF.helperOption = VF.page:addTickBox("helperText", getText("UI_ViewpointFixes_HelperText"), false,
+        getText("UI_ViewpointFixes_HelperText_Tooltip"))
     PZAPI.ModOptions:load()
 end
 

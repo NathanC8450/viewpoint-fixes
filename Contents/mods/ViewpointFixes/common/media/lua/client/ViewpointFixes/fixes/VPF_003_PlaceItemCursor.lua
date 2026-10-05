@@ -27,7 +27,7 @@ require "ViewpointFixes/ViewpointFixes"
 local VF = ViewpointFixes
 local ID = "VPF_003"
 
-VF.register({ id = ID, label = "UI_ViewpointFixes_VPF003", tooltip = "UI_ViewpointFixes_VPF003_Tooltip" })
+VF.register({ id = ID })
 
 local EVENT_STALE_MS = 500 -- RenderOpaqueObjectsInWorld newer than this: vanilla is driving the cursor
 
@@ -235,6 +235,7 @@ end
 
 -- "Radio  45°  [F] place (Shift: all)", green when it can be placed.
 local function drawLabel(drag)
+    if not VF.helperTextEnabled() then return end
     local text = drag.items[1]:getDisplayName() .. "  " ..
         tostring(drag:clamp(drag.render3DItemRot or 0)) .. getText("UI_ViewpointFixes_Degrees")
     if drag.surfacesPossible and #drag.surfacesPossible > 1 then
