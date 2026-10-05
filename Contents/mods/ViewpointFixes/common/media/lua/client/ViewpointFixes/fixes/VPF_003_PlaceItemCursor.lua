@@ -12,8 +12,9 @@ Cause: the vanilla cursor does almost all of its work in renderOpaqueObjectsInWo
 Fix:   while that event isn't firing, run the cursor's own renderOpaqueObjectsInWorld each frame from the
        still-running non-render OnDoTileBuilding2 call, with screenToIsoX/Y answering the aim point (Viewpoint's
        mouse pick in cursor mode, else the crosshair hit from our Java bridge), isLeftDown cleared (else it locks
-       to one square) and Render3DItem skipped. Vanilla then still handles R / Shift+R, the surface key, offsets
-       and range. The preview is a throwaway copy of the item handed to Viewpoint's world-item drawing (Java,
+       to one square) and Render3DItem skipped. Vanilla then still handles the surface key, offsets and range.
+       R / Shift+R go through vanilla handleRotate with the game's key state or the raw keyboard's (Java
+       rawKeyDown): Viewpoint hides keys from the game below isKeyDown. The preview is a throwaway copy of the item handed to Viewpoint's world-item drawing (Java,
        Patch_PreviewItem), never added to the world. Viewpoint's loot menu is paused while placing so R and Tab
        reach the cursor; F (Viewpoint's take key) places, Shift+F places all (vanilla). A label shows the
        rotation and whether it can be placed.
@@ -112,6 +113,22 @@ local function drive(drag, playerNum)
     local z = math.floor(player:getZ())
     local square = getCell():getGridSquare(math.floor(wx), math.floor(wy), z)
 
+    -- Vanilla checkRotateKey, with the keyboard's own state added: in 3D the game never saw R held (tests 1-3),
+    -- even with Viewpoint's loot menu paused. Viewpoint hides keys in KeyboardState.isKeyDown.
+    local core = getCore()
+    local rotateKey, rotateAlt = core:getKey(KeybindId.ROTATE_BUILDING), core:getAltKey(KeybindId.ROTATE_BUILDING)
+    local gameDown, gameShift = isKeyDown(KeybindId.ROTATE_BUILDING), isShiftKeyDown()
+    local rawDown, rawShift = false, false
+    if ViewpointFixesJava then
+        local raw = ViewpointFixesJava.rawKeyDown
+        rawDown = raw(rotateKey) or raw(rotateAlt)
+        rawShift = raw(Keyboard.KEY_LSHIFT) or raw(Keyboard.KEY_RSHIFT)
+    end
+    drag.checkRotateKey = function(self)
+        if self.chr:getPlayerNum() ~= 0 or self.chr:getJoypadBind() ~= -1 then return end
+        self:handleRotate(gameDown or rawDown, gameShift or rawShift)
+    end
+
     local toX, toY, render3D = screenToIsoX, screenToIsoY, Render3DItem
     screenToIsoX = function() return wx end
     screenToIsoY = function() return wy end
@@ -119,6 +136,7 @@ local function drive(drag, playerNum)
     drag.isLeftDown = false
     local ok, err = pcall(drag.renderOpaqueObjectsInWorld, drag, math.floor(wx), math.floor(wy), z, square)
     screenToIsoX, screenToIsoY, Render3DItem = toX, toY, render3D
+    drag.checkRotateKey = nil
     if not ok then error(err, 0) end
 
     local drop = drag.selectedSqDrop
@@ -127,9 +145,11 @@ local function drive(drag, playerNum)
     driven[playerNum] = drag
     showPreview(playerNum, drag)
 
+    if ViewpointFixesJava then ViewpointFixesJava.setDebug(VF.debugEnabled()) end
     if VF.debugEnabled() then
-        local keys = string.format("rotate key down=%s shift=%s", tostring(isKeyDown(KeybindId.ROTATE_BUILDING)),
-            tostring(isShiftKeyDown()))
+        local keys = string.format("rotate key %s: game=%s raw=%s shift game=%s raw=%s",
+            Keyboard.getKeyName(rotateKey), tostring(gameDown), tostring(rawDown), tostring(gameShift),
+            tostring(rawShift))
         if keys ~= lastKeyProbe then
             lastKeyProbe = keys
             VF.log(ID, keys .. " rot=" .. tostring(drag.render3DItemRot))

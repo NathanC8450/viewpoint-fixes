@@ -14,20 +14,25 @@ public final class Hooks {
 
     private static final String LOG = "[ViewpointFixes] java: ";
 
-    // VPF-004: world items drawn with their own rotation (Viewpoint passes 0 = "forced unrotated").
-    static volatile boolean itemRotation = true;
-    private static boolean itemRotationFailed;
-    private static Field capturing; // viewpoint.models.Models.capturing
+    /** The mod's "Debug logging" tickbox, mirrored from Lua. */
+    static volatile boolean debug;
 
     // VPF-003: a preview-only world item shown at the place-item cursor.
     static volatile Object preview; // zombie.iso.objects.IsoWorldInventoryObject, never added to a square
+    static volatile Object previewItem; // its item, to recognise it in renderMain
     private static boolean previewFailed;
     private static Field modelItems; // viewpoint.core.Frame.modelItems
+    private static long lastAddLog, lastRenderLog;
+    private static int added;
 
     // VPF-003: the point under Viewpoint's crosshair.
     private static boolean aimFailed;
     private static Field aimAsk, aimHit; // viewpoint.render.MousePick.aim / aimHit
     private static Method hitAsk, hitX, hitY, hitZ;
+
+    // VPF-003: raw key state (below Viewpoint's KeyboardState.isKeyDown patch).
+    private static boolean rawFailed;
+    private static Method rawKeyDown; // org.lwjglx.input.Keyboard.isKeyDown(int)
 
     private static final StringBuilder problems = new StringBuilder();
 
@@ -35,32 +40,19 @@ public final class Hooks {
         return Class.forName(name, false, ClassLoader.getSystemClassLoader());
     }
 
+    static void log(String line) {
+        System.out.println(LOG + line);
+    }
+
     private static void problem(String what, Throwable t) {
         String line = what + ": " + t;
-        System.out.println(LOG + line);
+        log(line);
         if (problems.length() > 0) problems.append("; ");
         problems.append(line);
     }
 
     static String status() {
         return problems.length() == 0 ? "ok" : problems.toString();
-    }
-
-    // ---- VPF-004 ----
-
-    /** Advice on WorldItemModelDrawer.renderMain(item, sq, sq, x, y, z, a, forcedRotation, extended). */
-    public static float itemRotation(float forced, boolean extended) {
-        if (!itemRotation || itemRotationFailed || forced != 0f || extended) return forced;
-        try {
-            if (capturing == null) capturing = type("viewpoint.models.Models").getField("capturing");
-            // Only while Viewpoint is drawing a world item (Models.item): -1 = use the item's own rotation, as
-            // vanilla IsoWorldInventoryObject does.
-            return capturing.getBoolean(null) ? -1f : forced;
-        } catch (Throwable t) {
-            itemRotationFailed = true;
-            problem("item rotation off", t);
-            return forced;
-        }
     }
 
     // ---- VPF-003 preview ----
@@ -72,12 +64,26 @@ public final class Hooks {
         if (p == null || previewFailed || frame == null) return;
         try {
             if (modelItems == null) modelItems = type("viewpoint.core.Frame").getField("modelItems");
-            ((List<Object>) modelItems.get(frame)).add(p);
+            List<Object> items = (List<Object>) modelItems.get(frame);
+            items.add(p);
+            added++;
+            if (debug && System.currentTimeMillis() - lastAddLog > 1000) {
+                lastAddLog = System.currentTimeMillis();
+                log("preview added to Viewpoint's world items (" + added + " frames so far, list size " + items.size() + ")");
+            }
         } catch (Throwable t) {
             previewFailed = true;
             preview = null;
             problem("preview off", t);
         }
+    }
+
+    /** Debug advice on WorldItemModelDrawer.renderMain exit: what happened to the preview's draw. */
+    public static void renderResult(Object item, Object status, Throwable thrown) {
+        if (!debug || item == null || item != previewItem) return;
+        if (thrown == null && System.currentTimeMillis() - lastRenderLog < 1000) return;
+        lastRenderLog = System.currentTimeMillis();
+        log("preview renderMain -> " + (thrown != null ? "threw " + thrown : status));
     }
 
     /**
@@ -89,14 +95,19 @@ public final class Hooks {
         try {
             Object p = preview;
             Class<?> wio = type("zombie.iso.objects.IsoWorldInventoryObject");
-            if (p == null || wio.getMethod("getItem").invoke(p) != item || wio.getMethod("getSquare").invoke(p) != square) {
-                float x = (float) xoff, y = (float) yoff, z = (float) zoff;
-                p = wio.getConstructor(type("zombie.inventory.InventoryItem"), type("zombie.iso.IsoGridSquare"),
-                        float.class, float.class, float.class).newInstance(item, square, x, y, z);
+            if (p == null || previewItem != item || wio.getMethod("getSquare").invoke(p) != square) {
+                // The constructor sets a random rotation on the item; keep the caller's.
+                Class<?> inv = type("zombie.inventory.InventoryItem");
+                float rot = (Float) inv.getMethod("getWorldZRotation").invoke(item);
+                p = wio.getConstructor(inv, type("zombie.iso.IsoGridSquare"), float.class, float.class, float.class)
+                        .newInstance(item, square, (float) xoff, (float) yoff, (float) zoff);
+                inv.getMethod("setWorldZRotation", float.class).invoke(item, rot);
+                if (debug) log("preview object made on " + square);
             }
             wio.getField("xoff").setFloat(p, (float) xoff);
             wio.getField("yoff").setFloat(p, (float) yoff);
             wio.getField("zoff").setFloat(p, (float) zoff);
+            previewItem = item;
             preview = p;
             return true;
         } catch (Throwable t) {
@@ -109,6 +120,7 @@ public final class Hooks {
 
     static void clearPreview() {
         preview = null;
+        previewItem = null;
     }
 
     // ---- VPF-003 aim ----
@@ -137,6 +149,21 @@ public final class Hooks {
             aimFailed = true;
             problem("crosshair aim off", t);
             return null;
+        }
+    }
+
+    // ---- VPF-003 keys ----
+
+    /** The keyboard's own state for `key`, before Viewpoint's KeyboardState.isKeyDown patch. */
+    static boolean rawKeyDown(int key) {
+        if (rawFailed || key <= 0) return false;
+        try {
+            if (rawKeyDown == null) rawKeyDown = type("org.lwjglx.input.Keyboard").getMethod("isKeyDown", int.class);
+            return (Boolean) rawKeyDown.invoke(null, key);
+        } catch (Throwable t) {
+            rawFailed = true;
+            problem("raw keys off", t);
+            return false;
         }
     }
 }

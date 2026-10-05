@@ -77,7 +77,7 @@ Template:
 - Reported upstream: no
 
 ## VPF-003: inventory "Place item" (free 3D placement) does nothing
-- Status: v3 (Lua + Java helper) written, untested. Test 1: placing works (cursor mode only, test 2); rotation and preview missing
+- Status: v4 written, untested. Test 1: placing works (cursor mode only, test 2); rotation and preview missing
 - Viewpoint version seen: 0.1.5a-hotfix
 - Repro: inventory → right-click an item (e.g. a radio) → Place Item. In 2D this gives a cursor where the item follows the mouse at sub-tile precision, R / Shift+R rotate it 360° (5° steps), Tab cycles surface heights, and a click places it. With Viewpoint's view on, the mode starts but nothing happens and there's no way to place.
 - Vanilla flow (`server/BuildingObjects/ISPlace3DItemCursor.lua`, 491 lines, read in full):
@@ -101,9 +101,11 @@ Template:
   - Preview: `Patch_PreviewItem` (OnEnter `viewpoint.models.Models.snapshot`) adds a preview `IsoWorldInventoryObject` to `frame.modelItems`. It's built on a throwaway `instanceItem(fullType)` copy (the constructor rewrites the item's rotation/container) and never added to a square, so it can't be saved, looted or synced. Its rotation is `setWorldZRotation(clamp(rot))`, shown thanks to VPF-004.
   - Viewpoint's loot menu is paused (`Viewpoint.Loot.setEnabled(false)`) while the cursor is out and restored to the user's `lootMenu` option afterwards, so R/Tab/F reach the game. The v2 key-event workaround and the harvest-menu entry were removed (the menu can't show while paused). F places, Shift+F places all.
   - Untested.
+- Test 3 (2026-10-05, ae1f4f9): the Java part loaded (both patches applied, status ok), but the radio model didn't render in 3D at all (VPF-004's double rotation, now withdrawn; the preview is unconfirmed either way). The aim came from the mouse (cursor mode). The rotate key never read as down (`down=false` once), even with the loot menu paused.
+- v4:
+  - VPF-004 removed.
+  - Rotation: vanilla `handleRotate` gets `isKeyDown(binding) or raw` (`ViewpointFixesJava.rawKeyDown`, the lwjgl keyboard below Viewpoint's patch), and the same for Shift.
+  - Debug probes: a Lua line on key-state change (`rotate key R: game=… raw=…`), and Java lines `preview added to Viewpoint's world items (…)` and `preview renderMain -> <status | threw …>` (`Patch_PreviewProbe`, temporary).
 
-## VPF-004: dropped / placed items always drawn unrotated in 3D
-- Status: fix written (Java `Patch_ItemRotation` + toggle `fixes/VPF_004_ItemRotation.lua`), untested
-- Viewpoint version seen: 0.1.5a-hotfix
-- Found while diagnosing VPF-003 (bytecode, not yet seen in game): `Models.item` calls `WorldItemModelDrawer.renderMain(..., 0f, 0f, false)`. In `ItemModelRenderer.renderMain`, a forced rotation `>= 0` sets the angle to `(0, forced, 0)` instead of the item's `worldXRotation/worldZRotation/worldYRotation`. Vanilla `IsoWorldInventoryObject` uses the 7-arg overload, which passes `-1`. So every item on the ground or a surface shows at 0° in 3D, whatever it was placed with (expected repro: place an item at 90° in 2D, switch to 3D).
-- Fix: ZombieBuddy advice on the 9-arg `renderMain` (matched by `@Argument(7)`): when `viewpoint.models.Models.capturing` is true (only `Models.item` sets it for this drawer), the forced rotation is 0 and not extended placement, pass `-1`. Possible risk to check: Viewpoint may have chosen 0 on purpose (model axes); look for items lying on their side.
+## VPF-004: (withdrawn) "world items drawn unrotated"
+- Status: **wontfix: misdiagnosis.** I read only the call site (`renderMain(..., 0f, 0f, false)`) and missed that Viewpoint's `RigidCapture.item` applies the item's own rotation itself. The patch (forced `-1`) double-rotated items. In test 3 the radio didn't render at all. Removed.

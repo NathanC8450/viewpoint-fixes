@@ -11,7 +11,6 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 |---|---|---|
 | VPF-002 | Furniture pick up / place / rotate cursor works in first and third person | `fixes/VPF_002_MoveableCursor.lua` |
 | VPF-003 | Inventory "Place item" (free 3D placement, R / Shift+R rotation) works in first and third person, with the item shown where you aim | `fixes/VPF_003_PlaceItemCursor.lua` + Java (aim, preview) |
-| VPF-004 | Dropped / placed items show their rotation in first and third person | `fixes/VPF_004_ItemRotation.lua` + Java `Patch_ItemRotation` |
 
 ## Layout
 

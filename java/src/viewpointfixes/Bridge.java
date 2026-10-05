@@ -12,6 +12,11 @@ public final class Bridge {
         return Hooks.status();
     }
 
+    /** Mirrors the mod's "Debug logging" tickbox (Java probe lines). */
+    public static void setDebug(boolean on) {
+        Hooks.debug = on;
+    }
+
     /** World point under Viewpoint's crosshair, or nil (cursor mode, nothing under the crosshair). */
     public static Double aimX() {
         return Hooks.aim(0);
@@ -35,8 +40,8 @@ public final class Bridge {
         Hooks.clearPreview();
     }
 
-    /** VPF-004 toggle. */
-    public static void setItemRotation(boolean on) {
-        Hooks.itemRotation = on;
+    /** The keyboard's own state for a key code, before Viewpoint hides keys from the game. */
+    public static boolean rawKeyDown(double key) {
+        return Hooks.rawKeyDown((int) key);
     }
 }

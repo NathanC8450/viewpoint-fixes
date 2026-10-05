@@ -14,5 +14,8 @@ $files = Get-ChildItem -Recurse -Filter *.java $src | ForEach-Object { $_.FullNa
 & javac --release 17 -Xlint:all -cp $zb -d $out $files
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & jar --create --file $jar -C $out .
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if ($LASTEXITCODE -ne 0) {
+    Write-Output "jar not written: if the game is running it holds the jar open; close it and build again"
+    exit $LASTEXITCODE
+}
 Write-Output "built $jar"
