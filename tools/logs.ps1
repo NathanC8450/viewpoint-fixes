@@ -1,13 +1,16 @@
-# Follows the game's console log live, filtered to this mod's output and Lua errors.
-# Usage:  .\tools\logs.ps1          mod lines + errors
+# Follows the game's console log live, filtered to our fixes, Viewpoint, ZombieBuddy and Lua errors.
+# Viewpoint's periodic perf summary is dropped unless -Perf is given.
+# Usage:  .\tools\logs.ps1          filtered
+#         .\tools\logs.ps1 -Perf    filtered, including Viewpoint perf lines
 #         .\tools\logs.ps1 -All     everything
-param([switch]$All)
+param([switch]$All, [switch]$Perf)
 
 $log = Join-Path $env:USERPROFILE "Zomboid\console.txt"
-$pattern = "\[MyFirstMod\]|ERROR|Exception|STACK TRACE|attempted index|non-table"
+$pattern = "\[ViewpointFixes\]|\[MyFirstMod\]|\[Viewpoint\]|\[ZB\]|ERROR|Exception|STACK TRACE|attempted index|non-table|\(MOD:"
+$perfLine = "\[Viewpoint\] \d+ fps \|"
 
 if ($All) {
     Get-Content $log -Wait -Tail 50
 } else {
-    Get-Content $log -Wait -Tail 200 | Select-String -Pattern $pattern
+    Get-Content $log -Wait -Tail 200 | Where-Object { $_ -match $pattern -and ($Perf -or $_ -notmatch $perfLine) }
 }

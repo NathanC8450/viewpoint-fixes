@@ -1,6 +1,9 @@
 # My First Mod
 
-A Project Zomboid **Build 42** mod.
+Unofficial fix mods for [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528) (Project Zomboid **Build 42**). Not affiliated with the Viewpoint authors.
+
+- [docs/viewpoint.md](docs/viewpoint.md): how Viewpoint works and what we can hook
+- [docs/bugs.md](docs/bugs.md): bug log (VPF-NNN) and fix status
 
 ## Layout
 
