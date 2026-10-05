@@ -18,6 +18,14 @@ public final class Bridge {
     }
 
     /** World point under Viewpoint's crosshair, or nil (cursor mode, nothing under the crosshair). */
+    public static Double cursorX() {
+        return Hooks.cursor(0);
+    }
+
+    public static Double cursorY() {
+        return Hooks.cursor(1);
+    }
+
     public static Double aimX() {
         return Hooks.aim(0);
     }

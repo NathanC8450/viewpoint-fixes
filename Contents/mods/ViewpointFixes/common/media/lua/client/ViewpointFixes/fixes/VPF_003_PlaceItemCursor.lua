@@ -64,6 +64,11 @@ local function pickedPoint()
     local wy = mouse and mouse.worldY()
     if wx and wy then return wx, wy end
     if ViewpointFixesJava then
+        -- Cursor mode while the pointer moves: Viewpoint's Mouse is nil, its latest pick is a frame or two late.
+        wx, wy = ViewpointFixesJava.cursorX(), ViewpointFixesJava.cursorY()
+        if wx and wy then
+            return wx, wy
+        end
         wx, wy = ViewpointFixesJava.aimX(), ViewpointFixesJava.aimY()
         if wx and wy then return wx, wy end
     end

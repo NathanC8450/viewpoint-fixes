@@ -27,7 +27,7 @@ public final class Hooks {
 
     // VPF-003: the point under Viewpoint's crosshair.
     private static boolean aimFailed;
-    private static Field aimAsk, aimHit; // viewpoint.render.MousePick.aim / aimHit
+    private static Field aimAsk, aimHit, cursorHit; // viewpoint.render.MousePick.aim / aimHit / hit
     private static Method hitAsk, hitX, hitY, hitZ;
 
     // VPF-003: raw key state (below Viewpoint's KeyboardState.isKeyDown patch).
@@ -133,6 +133,26 @@ public final class Hooks {
 
     // ---- VPF-003 aim ----
 
+    /**
+     * Component 0/1/2 of Viewpoint's latest cursor pick (a depth readback a frame or two behind the mouse), or null.
+     * Viewpoint's own Lua Mouse.worldX drops any pick more than 3 px from the pointer, so it is nil while the
+     * mouse moves; for a moving preview a slightly late point is better than none.
+     */
+    static Double cursor(int axis) {
+        if (aimFailed) return null;
+        try {
+            aim(axis); // resolves the reflection handles
+            Object hit = cursorHit == null ? null : cursorHit.get(null);
+            if (hit == null) return null;
+            Method m = axis == 0 ? hitX : axis == 1 ? hitY : hitZ;
+            return (Double) m.invoke(hit);
+        } catch (Throwable t) {
+            aimFailed = true;
+            problem("cursor aim off", t);
+            return null;
+        }
+    }
+
     /** Component 0/1/2 (x/y/z) of the world point under the crosshair, or null (cursor mode, nothing hit, error). */
     static Double aim(int axis) {
         if (aimFailed) return null;
@@ -141,6 +161,7 @@ public final class Hooks {
                 Class<?> pick = type("viewpoint.render.MousePick");
                 Class<?> hit = type("viewpoint.render.MousePick$Hit");
                 aimHit = pick.getField("aimHit");
+                cursorHit = pick.getField("hit");
                 hitAsk = hit.getMethod("ask");
                 hitX = hit.getMethod("x");
                 hitY = hit.getMethod("y");
