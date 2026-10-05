@@ -105,6 +105,88 @@ local function facingOf(props)
     return nil
 end
 
+-- A queued ISMoveablesAction waits in waitToStart until character:shouldBeTurning() is false. Viewpoint
+-- steers the character's facing from the camera, which (inferred) can keep that true forever, so the action
+-- never starts. After this long, let it start anyway.
+local TURN_WAIT_MS = 1500
+local WATCH_MS = 6000
+local watched = {} -- actions we queued -> { since, state }
+
+local function watchAction(action)
+    if watched[action] then return end
+    local w = { queuedAt = now(), state = "queued" }
+    watched[action] = w
+
+    local waitToStart = action.waitToStart
+    action.waitToStart = function(self)
+        local waiting = waitToStart(self)
+        if not waiting then return false end
+        w.state = "turning"
+        w.turningSince = w.turningSince or now()
+        if VF.isEnabled(ID) and now() - w.turningSince > TURN_WAIT_MS then
+            if not w.forced then
+                w.forced = true
+                VF.log(ID, "action " .. tostring(self.mode) .. " stuck turning for " .. TURN_WAIT_MS ..
+                    " ms; starting it anyway")
+            end
+            return false
+        end
+        return true
+    end
+
+    local isValid = action.isValid
+    action.isValid = function(self)
+        local ok = isValid(self)
+        if not ok and w.state ~= "invalid" then
+            w.state = "invalid"
+            local sq = self.character:getSquare()
+            VF.debug(ID, string.format("action %s became invalid: playerZ=%s targetZ=%s adjacent=%s",
+                tostring(self.mode), tostring(sq and sq:getZ()), tostring(self.square and self.square:getZ()),
+                tostring(self:isAdjacentToAnySquare())))
+        end
+        return ok
+    end
+
+    local start = action.start
+    action.start = function(self)
+        w.state = "started"
+        VF.debug(ID, "action " .. tostring(self.mode) .. " started")
+        return start(self)
+    end
+
+    local performAction = action.perform
+    action.perform = function(self)
+        w.state = "performed"
+        VF.debug(ID, "action " .. tostring(self.mode) .. " performed")
+        return performAction(self)
+    end
+end
+
+-- Hooks the ISMoveablesAction that tryBuild just queued (if any) and reports what the queue holds.
+local function watchQueue(player)
+    local queue = ISTimedActionQueue.getTimedActionQueue(player)
+    local list = queue and queue.queue or {}
+    local types = {}
+    for _, a in ipairs(list) do
+        table.insert(types, tostring(a.Type))
+        if a.Type == "ISMoveablesAction" then watchAction(a) end
+    end
+    VF.debug(ID, "queue after accept: [" .. table.concat(types, ", ") .. "]")
+end
+
+local function onTickProbe()
+    for action, w in pairs(watched) do
+        if now() - w.queuedAt > WATCH_MS then
+            VF.debug(ID, string.format("action %s final state after %d ms: %s", tostring(action.mode), WATCH_MS,
+                w.state))
+            watched[action] = nil
+        elseif VF.debugEnabled() then
+            probe("watch", "action %s state=%s shouldBeTurning=%s", tostring(action.mode), w.state,
+                tostring(action.character:shouldBeTurning()))
+        end
+    end
+end
+
 -- Re-validates the cursor on a square and, if the game allows it, starts the action (walk there, then the
 -- vanilla ISMoveablesAction). `choose` sets which option (object or facing) is used.
 local function perform(drag, square, choose)
@@ -115,6 +197,7 @@ local function perform(drag, square, choose)
     drag.canBeBuild = drag:isValid(square, drag.north) == true
     if drag.canBeBuild and drag.canCreate then
         drag:tryBuild(square:getX(), square:getY(), square:getZ())
+        watchQueue(getSpecificPlayer(drag.player))
     end
     VF.debug(ID, string.format("perform mode=%s at %d,%d,%d canBeBuild=%s canCreate=%s",
         tostring(ISMoveableCursor.mode[drag.player]), square:getX(), square:getY(), square:getZ(),
@@ -222,14 +305,27 @@ local function onDoTileBuilding(drag, isRender, x, y, z, square)
     return DoTileBuilding(drag, isRender, x, y, z, square)
 end
 
--- Viewpoint's "take" key (F by default), read from Viewpoint's own keybinds when it exposes them.
+-- Viewpoint's "take" key (F by default). Looked up once from Viewpoint's own keybind list, using only ids it
+-- reports itself: the game logs Java exceptions even inside pcall, so we never guess an id.
+local cachedAcceptKey
 local function acceptKey()
+    if cachedAcceptKey then return cachedAcceptKey end
+    cachedAcceptKey = Keyboard.KEY_F
     local keys = Viewpoint and Viewpoint.Keys
-    if keys then
-        local ok, code = pcall(function() return keys.trigger(keys.get("lootTake")) end)
-        if ok and type(code) == "number" and code > 0 then return code end
+    if not (keys and keys.count and keys.id and keys.get and keys.trigger) then return cachedAcceptKey end
+    local ids = {}
+    for i = 0, keys.count() - 1 do
+        local id = tostring(keys.id(i))
+        table.insert(ids, id)
+        local lower = string.lower(id)
+        if string.find(lower, "take", 1, true) and not string.find(lower, "all", 1, true) then
+            local code = keys.trigger(keys.get(id))
+            if type(code) == "number" and code > 0 then cachedAcceptKey = code end
+        end
     end
-    return Keyboard.KEY_F
+    VF.debug(ID, "Viewpoint key ids: " .. table.concat(ids, ", ") .. "; accept key " ..
+        Keyboard.getKeyName(cachedAcceptKey))
+    return cachedAcceptKey
 end
 
 -- Fallback when Viewpoint shows no menu for the target: the key accepts the cursor's current choice.
@@ -275,6 +371,7 @@ local function install()
     Events.OnDoTileBuilding2.Add(onDoTileBuilding)
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
+    Events.OnTick.Add(onTickProbe)
 
     if ViewpointInteract and ViewpointInteract.harvest then
         local harvest = ViewpointInteract.harvest
