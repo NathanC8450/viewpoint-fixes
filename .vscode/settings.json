@@ -1,0 +1,22 @@
+{
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.runtime.nonstandardSymbol": ["!="],
+    "Lua.workspace.library": [
+        "C:/SteamLibrary/steamapps/common/ProjectZomboid/media/lua"
+    ],
+    "Lua.workspace.preloadFileSize": 2000,
+    "Lua.workspace.checkThirdParty": false,
+    "Lua.diagnostics.globals": [
+        "Events", "getPlayer", "getSpecificPlayer", "getText", "getCore",
+        "instanceof", "ZombRand", "ModData", "SandboxVars", "isClient",
+        "isServer", "sendClientCommand", "sendServerCommand", "require"
+    ],
+    "files.associations": {
+        "**/media/scripts/**/*.txt": "pz-script",
+        "mod.info": "properties",
+        "workshop.txt": "properties"
+    },
+    "files.encoding": "utf8",
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4
+}

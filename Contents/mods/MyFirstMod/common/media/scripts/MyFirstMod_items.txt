@@ -1,0 +1,15 @@
+module MyFirstMod
+{
+    imports
+    {
+        Base
+    }
+
+    item LuckyCoin
+    {
+        DisplayCategory = Junk,
+        ItemType = base:normal,
+        Weight = 0.01,
+        Icon = MyFirstMod_LuckyCoin,
+    }
+}

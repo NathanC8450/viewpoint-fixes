@@ -1,0 +1,13 @@
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+
+# Image editor working files (export PNGs into the mod instead)
+*.psd
+*.kra
+*.xcf
+
+# Local build/release output
+dist/
