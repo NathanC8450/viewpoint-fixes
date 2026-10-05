@@ -18,7 +18,7 @@ Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint w
 
 Viewpoint is proprietary: no copying, modifying, redistributing, or "decompiling for reuse".
 - Never copy Viewpoint code, shaders or assets into this repo, not even "patched" copies of its Lua files. Fixes are separate code that wraps or hooks from outside.
-- Don't decompile `Viewpoint.jar` (no javap/CFR/etc.). Listing class names and reading its shipped Lua to understand how to interoperate is fine. Ask the user before anything deeper.
+- **Reading `Viewpoint.jar` for debugging and understanding is allowed** (user, 2026-10-05): `javap -p -c`, decompiling to the scratchpad, and so on. Never commit decompiled output, copy its code into the repo, or redistribute it. Our fixes stay our own code that hooks from outside.
 - Reference Viewpoint only by name at runtime (Lua globals, `Class.forName`/reflection), so our mod loads and stays harmless if Viewpoint changes or is absent.
 - Credit and disclaim in workshop text: unofficial, not affiliated, requires Viewpoint.
 
@@ -35,7 +35,7 @@ Every fix must:
 - **Guard and degrade.** Check that the target exists before wrapping, wrap only once (a guard flag), call the original, and use pcall where a failure could cascade. After an unexpected error the fix turns itself off and logs once, rather than spamming or breaking Viewpoint.
 - **Apply at the right time.** Viewpoint's Lua is in `42/media/lua/client` and installs some wraps at OnGameBoot/OnGameStart. Don't rely on file load order. Apply our wraps in an event after Viewpoint's, or lazily.
 - **Log** through `ViewpointFixes.log/debug` (prefix `[ViewpointFixes] VPF_NNN:`), so `tools/logs.ps1` picks it up.
-- **Game bytecode is fair game for diagnosis.** `javap -p`/`-c` on `projectzomboid.jar` classes (an extracted copy may be in `/tmp/pzj`) is how VPF-002 was found. This rule is about the game's own code only; it does not cover Viewpoint's.
+- **Game bytecode is fair game for diagnosis.** `javap -p`/`-c` on `projectzomboid.jar` classes (an extracted copy may be in `/tmp/pzj`) is how VPF-002 was found. The same goes for `Viewpoint.jar` (read-only, nothing copied; see Hard rules).
 - **Be minimal.** Fix the bug, not the design. No feature work unless the user asks.
 
 When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint Discord / Steam discussions) so it can be retired later.
@@ -44,7 +44,13 @@ When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint D
 
 - Game: `C:\SteamLibrary\steamapps\common\ProjectZomboid` (B42.21, its own Java runtime is **25.0.1**). The vanilla Lua is in `media/lua`, scripts in `media/scripts/generated`. These are large, so grep specific paths and never the whole game folder.
 - Workshop content: `C:\SteamLibrary\steamapps\workshop\content\108600\<id>`. Viewpoint is 3809306528, ZombieBuddy 3619862853, ZombieBuddyFix 3809837933, Controller Aim 3811577340.
-- Java fixes need **JDK 25** (only JDK 17 is installed at `C:\Program Files\Eclipse Adoptium`). Compile with `--release 25` against `projectzomboid.jar` + `ZombieBuddy.jar` (in the workshop `libs/` folder, or the game folder). The jar path should be `42/media/java/client/` for a client-only fix, and mod.info needs `require=\ZombieBuddy,\Viewpoint`, `javaJarFile` and `javaPkgName`. ZombieBuddy asks the user to approve new Java mods.
+- **Java part**: `java/src/viewpointfixes` (package `viewpointfixes`), built by `tools/build-java.ps1` into `42/media/java/client/ViewpointFixes.jar`, which is committed.
+  - It compiles with the installed **JDK 17** (`--release 17`, the same level as ZombieBuddy and Viewpoint) against `ZombieBuddy.jar` only.
+  - The game jar is class version 69 (Java 25), which javac 17 can't read. So **game and Viewpoint classes are reached by reflection** (`Hooks.type(name)`), and `@Patch` advice parameters use primitives or `Object`.
+  - Lua sees it as `ViewpointFixesJava` (`@Exposer.LuaClass`). Every Lua caller must cope with it being nil (jar not approved).
+  - Each Java feature switches itself off on its first reflection failure and reports why through `ViewpointFixesJava.status()`.
+  - ZombieBuddy matches `@Patch` overloads by `@Argument` index and type (minimum argument count); see its `PatchEngine.java` (source ships in the workshop folder).
+  - ZombieBuddy asks the user to approve a new or changed jar on launch. Java changes need a game restart.
 - Logs: `%USERPROFILE%\Zomboid\console.txt` (overwritten each launch; older runs are in `Zomboid\Logs\logs_<date>`). **Read it yourself after the user says they tested. Never ask them to paste logs or run tools/logs.ps1.** Grep for `[ViewpointFixes]`, `[Viewpoint]`, `ERROR`, `(MOD:`. The project is junction-linked into `%USERPROFILE%\Zomboid\Workshop\ViewpointFixes` (`tools/link.ps1`).
 
 ## Project Zomboid B42 conventions

@@ -31,7 +31,7 @@ C:\SteamLibrary\steamapps\workshop\content\108600\3809306528\mods\Viewpoint\
       └─ Viewpoint_FrameCapOptions.lua   splits the framerate option into game/menu
 ```
 
-The Lua ships as plain source, so read it to understand how to interoperate. **Do not decompile the jar.** Listing class *names* (`unzip -l`) is fine and is how the architecture below was inferred.
+The Lua ships as plain source, so read it to understand how to interoperate. The user allows reading the jar bytecode for debugging and understanding (2026-10-05), but never copying it into this repo. The architecture below was first inferred from class names (`unzip -l`).
 
 ## Architecture (inferred from class names, logs and stack traces)
 
@@ -81,7 +81,15 @@ Temporary swaps, restored after a pcall:
 
 - With the view on, the left mouse button reads as **permanently held** both through the game (`IsoPlayer:isBuildButtonDown()`, i.e. the Attack binding) and raw (`isMouseButtonDown(0)`). Lua can't detect left clicks. Use Viewpoint's interaction menu (wrap `ViewpointInteract.harvest`) or a key.
 - `isoToScreenX/Y` is **not** 3D-projected: it still maps to iso screen space. Lua can't draw world-anchored overlays with it.
-- `Viewpoint.Mouse.worldX/worldY` returns the aimed world point (tracked the crosshair/mouse correctly in testing).
+- `Viewpoint.Mouse.worldX/worldY` is a GPU depth pick under the **mouse cursor** (`MouseTargets.world` ← `MousePick.hit`). It is **nil in crosshair mode** (`MousePick.ask` is only set while the middle-click cursor is shown). The crosshair has its own pick, `MousePick.aim` / `aimHit` (record `Hit(ask, x, y, z, dir…)`, z in floor levels, fresh only when `hit.ask() == aim`), set by `CrosshairAim.snapshot`. Lua can only reach it through our `ViewpointFixesJava.aimX/Y/Z()`.
+- The reticle position Viewpoint feeds the game (`Patch_ReticleX/Y` → `Controls.reticle`) is a point 8 tiles ahead along the facing, with no pitch. It isn't an aim point.
+
+### Internals read from Viewpoint.jar (0.1.5a-hotfix, user allowed reading for debugging, 2026-10-05)
+
+- **Keys**: `Patch_KeyDown` patches `zombie.input.KeyboardState.isKeyDown` (the raw state that `GameKeyboard.update` copies into `down[]`). So it also hides keys from `OnKeyStartPressed`/`OnKeyPressed`. The chain is `Hooks.keyDown` → `KeyInput.keyDown` (hides keys only while rebinding) → `GameFixes.keyDown` (free cam) → `LootMenu.keyDown`. **LootMenu claims a key on its press and hides it until release** (`asks`): Tab (loot window) whenever the menu is shown or open; R (take all) and Tab while it shows a container (`loot`); F (take) when it has an interaction. Nothing is claimed while the menu is hidden.
+- **The loot/interaction menu only exists in crosshair mode** (`LootMenu.player()` needs `enabled`, `View.enabled`, no free cam, `Look.wantCapture`, local player 0, not in a vehicle, not aiming). `Viewpoint.Loot.setEnabled(b)` sets `LootMenu.enabled`. The user's own choice is Viewpoint's ModOption `lootMenu` (page "Viewpoint").
+- **World items**: each frame `FP.snapshot` clears `Frame.modelItems` and `ChunkCache.update`/`ChunkWalk.models` refills it from per-chunk lists (`modelledItems`, gathered at chunk rebuilds). Then `Models.snapshot(frame, …)` → `Models.item(obj, sq)` draws each one with `WorldItemModelDrawer.renderMain(item, sq, obj.getRenderSquare(), x+xoff, y+yoff, z+zoff, 0, 0, false)` under `Models.capturing`. `Patch_DrawGeneric` (`SpriteRenderer.drawGeneric`) keeps only drawers captured that way. Offsets are read live; the list membership comes from the chunk cache. Anything drawn outside that (vanilla `Render3DItem`) goes to the hidden iso renderer.
+- **Bug (VPF-004)**: that `0` forced rotation makes `ItemModelRenderer` ignore `worldX/Y/ZRotation`; vanilla `IsoWorldInventoryObject` passes `-1`.
 
 ## Config and logs
 

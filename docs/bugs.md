@@ -77,7 +77,7 @@ Template:
 - Reported upstream: no
 
 ## VPF-003: inventory "Place item" (free 3D placement) does nothing
-- Status: fix in progress. Placing works (test 1); rotation fix untested; no 3D preview
+- Status: v3 (Lua + Java helper) written, untested. Test 1: placing works (cursor mode only, test 2); rotation and preview missing
 - Viewpoint version seen: 0.1.5a-hotfix
 - Repro: inventory → right-click an item (e.g. a radio) → Place Item. In 2D this gives a cursor where the item follows the mouse at sub-tile precision, R / Shift+R rotate it 360° (5° steps), Tab cycles surface heights, and a click places it. With Viewpoint's view on, the mode starts but nothing happens and there's no way to place.
 - Vanilla flow (`server/BuildingObjects/ISPlace3DItemCursor.lua`, 491 lines, read in full):
@@ -92,3 +92,18 @@ Template:
 - Rotation analysis: `checkRotateKey` reads `isKeyDown(KeybindId.ROTATE_BUILDING)` → `GameKeyboard.isKeyDown(int)`, which just returns `down[key]` (javap). Viewpoint binds R (`keys.lootTakeAll`) and ships a `Patch_KeyDown` class (name only; not decompiled), so it likely hides its own keys from the game (inferred). `GameKeyboard.update` raises `OnKeyStartPressed` / `OnKeyKeepPressed` / `OnKeyPressed` straight from the keyboard state, independent of `isKeyDown`. v2: track the rotate key through those events and pass `isKeyDown or events` to vanilla `handleRotate` (instance override of `checkRotateKey` for the driven call only). The debug probe logs `rotate key: isKeyDown=… events=… shift=…` on change, to confirm which source is blocked.
 - Known side effect to check: R is also Viewpoint's "take all" loot key, and Tab (surface cycle) is its loot window key.
 - Preview: drawing the item model in 3D would need Viewpoint to render it (no Lua API for that). Candidate upstream request.
+- Test 2 (2026-10-05, v2 927449d): placing **only worked with the middle-click cursor shown**; still no preview; rotation still 0, and the probe never saw R (`isKeyDown=false events=false` once). The user allowed reading Viewpoint.jar for debugging, which explained all three (details in viewpoint.md, "Internals"):
+  - `Viewpoint.Mouse` is the cursor pick only, nil in crosshair mode, so `drive` returned early in normal play. The crosshair pick (`MousePick.aimHit`) is Java-only.
+  - Viewpoint draws world items only from `Frame.modelItems` while capturing, so no Lua-side preview can show.
+  - `Patch_KeyDown` patches `KeyboardState.isKeyDown`, so the key events see what `isKeyDown` sees (the v2 event workaround could never help). In practice the loot menu only takes R/Tab while it's showing (crosshair mode); in cursor mode R should have reached the cursor, so the R test is still open. Also, even a correct rotation wouldn't have shown: see VPF-004.
+- v3 (user chose the Java helper): `java/src/viewpointfixes`.
+  - `ViewpointFixesJava.aimX/Y/Z` reads `MousePick.aim/aimHit` (crosshair). Lua prefers `Viewpoint.Mouse` (cursor mode), then the crosshair.
+  - Preview: `Patch_PreviewItem` (OnEnter `viewpoint.models.Models.snapshot`) adds a preview `IsoWorldInventoryObject` to `frame.modelItems`. It's built on a throwaway `instanceItem(fullType)` copy (the constructor rewrites the item's rotation/container) and never added to a square, so it can't be saved, looted or synced. Its rotation is `setWorldZRotation(clamp(rot))`, shown thanks to VPF-004.
+  - Viewpoint's loot menu is paused (`Viewpoint.Loot.setEnabled(false)`) while the cursor is out and restored to the user's `lootMenu` option afterwards, so R/Tab/F reach the game. The v2 key-event workaround and the harvest-menu entry were removed (the menu can't show while paused). F places, Shift+F places all.
+  - Untested.
+
+## VPF-004: dropped / placed items always drawn unrotated in 3D
+- Status: fix written (Java `Patch_ItemRotation` + toggle `fixes/VPF_004_ItemRotation.lua`), untested
+- Viewpoint version seen: 0.1.5a-hotfix
+- Found while diagnosing VPF-003 (bytecode, not yet seen in game): `Models.item` calls `WorldItemModelDrawer.renderMain(..., 0f, 0f, false)`. In `ItemModelRenderer.renderMain`, a forced rotation `>= 0` sets the angle to `(0, forced, 0)` instead of the item's `worldXRotation/worldZRotation/worldYRotation`. Vanilla `IsoWorldInventoryObject` uses the 7-arg overload, which passes `-1`. So every item on the ground or a surface shows at 0° in 3D, whatever it was placed with (expected repro: place an item at 90° in 2D, switch to 3D).
+- Fix: ZombieBuddy advice on the 9-arg `renderMain` (matched by `@Argument(7)`): when `viewpoint.models.Models.capturing` is true (only `Models.item` sets it for this drawer), the forced rotation is 0 and not extended placement, pass `-1`. Possible risk to check: Viewpoint may have chosen 0 on purpose (model axes); look for items lying on their side.
