@@ -130,6 +130,7 @@ local function choices(drag, square)
     local mode = ISMoveableCursor.mode[drag.player]
     local list = {}
     local savedIndex, savedFacing = drag.objectIndex, drag.cursorFacing
+    local seenFacing = {}
     drag:isValid(square, drag.north) -- fills objectListCache / origMoveProps for this square
 
     local function add(choose, current)
@@ -143,7 +144,17 @@ local function choices(drag, square)
                 name = name .. " " .. getText("UI_ViewpointFixes_Facing", tostring(facing))
             end
             if current then name = name .. " " .. getText("UI_ViewpointFixes_Current") end
-            table.insert(list, { name = name, choose = choose, enabled = drag.canCreate == true and not current })
+            local entry = { name = name, choose = choose, enabled = drag.canCreate == true and not current }
+            -- Some objects index more faces than they have distinct sprites (a mattress: S, E, S, E); list a
+            -- facing once, and let the current one win so it's the greyed entry.
+            local byFacing = facing and (mode == "rotate" or mode == "place")
+            local at = byFacing and seenFacing[facing]
+            if at then
+                if current then list[at] = entry end
+            else
+                table.insert(list, entry)
+                if byFacing then seenFacing[facing] = #list end
+            end
         end
     end
 

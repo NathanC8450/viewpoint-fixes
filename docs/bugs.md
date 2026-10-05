@@ -111,7 +111,9 @@ Template:
 - Preview vanishing while the pointer moves (cursor mode only): the log showed repeated "no aim point". Viewpoint's cursor pick is a GPU depth readback a frame or two late, and its Lua `Mouse.worldX/Y` returns nil when the pick's pixel is more than 3 px from the pointer, so it is nil exactly while moving (the preview was hidden and rebuilt each time). Fixed by reading `MousePick.hit` from Java (`ViewpointFixesJava.cursorX/Y`, a frame late at worst), plus a 300 ms grace on the last aim point. Crosshair mode never had the gap.
 - Rotation delay (cursor and crosshair): vanilla `handleRotate` waits 250 ms of holding before smooth rotation starts; a tap gives one 5 degree step on release. Same in 2D. Left as is.
 - Cleanup done: `Patch_PreviewProbe`, `Patch_CaptureProbe` and `Debug/TracePlaceItem.lua` removed (the committed jar still contains the probes until it is rebuilt with the game closed; harmless, they only log in debug mode).
-- Untested: crosshair Tab / Shift+F. Suggest reporting upstream: `Mouse.worldX/Y` is nil while moving; no API for a custom 3D cursor/preview.
+- **Known issue (accepted for now):** Tab does not cycle surface heights while placing (user, 2026-10-05). Shift+F places all (vanilla place-all, purpose unclear; left).
+- Known issue (accepted for now): Tab does not cycle surface heights while placing. Shift+F places all (vanilla place-all; left as is).
+- Untested before: crosshair Tab / Shift+F. Suggest reporting upstream: `Mouse.worldX/Y` is nil while moving; no API for a custom 3D cursor/preview.
 
 ## VPF-004: (withdrawn) "world items drawn unrotated"
 - Status: **wontfix: misdiagnosis.** I read only the call site (`renderMain(..., 0f, 0f, false)`) and missed that Viewpoint's `RigidCapture.item` applies the item's own rotation itself. The patch (forced `-1`) double-rotated items. In test 3 the radio didn't render at all. Removed.
