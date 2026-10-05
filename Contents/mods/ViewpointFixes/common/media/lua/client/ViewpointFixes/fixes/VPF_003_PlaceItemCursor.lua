@@ -10,7 +10,9 @@ Cause: the vanilla cursor does almost all of its work in renderOpaqueObjectsInWo
 Fix:   while that event isn't firing, run the cursor's own renderOpaqueObjectsInWorld each frame from the
        still-running non-render OnDoTileBuilding2 call, with screenToIsoX/Y answering Viewpoint's 3D aim point,
        isLeftDown cleared (else it locks to one square) and Render3DItem skipped (a render call outside the render
-       pass). Vanilla then still handles R / Shift+R rotation, the surface key, offsets and range. Placing is
+       pass). Vanilla then still handles the surface key, offsets and range. R / Shift+R go through vanilla
+       handleRotate, but the held state also comes from the key events, since isKeyDown(Rotate building) never
+       saw R in 3D (first test). Placing is
        offered in Viewpoint's interaction menu (F accepts); where Viewpoint shows no menu, F accepts directly.
        Holding Shift when accepting places all (vanilla). A label shows item, rotation and validity, since the
        3D preview can't be drawn.
@@ -65,6 +67,27 @@ local function aimPoint()
     return nil
 end
 
+-- Rotate key held, from the game's key events (OnKeyStartPressed / OnKeyKeepPressed / OnKeyPressed), which are
+-- raised from the raw keyboard state. In 3D, isKeyDown(Rotate building) stayed false while R was held (test
+-- 2026-10-05: rot never left 0); the probe below logs both sources so the blocked one is on record.
+local rotateKey = { held = false, seen = 0 }
+local KEY_HELD_STALE_MS = 200 -- no keep-pressed event for this long: treat as released (e.g. focus lost)
+
+local function isRotateKey(key)
+    local core = getCore()
+    return key == core:getKey(KeybindId.ROTATE_BUILDING) or key == core:getAltKey(KeybindId.ROTATE_BUILDING)
+end
+
+local function onRotateKeyDown(key)
+    if isRotateKey(key) then rotateKey.held, rotateKey.seen = true, now() end
+end
+
+local function rotateKeyHeld()
+    return rotateKey.held and now() - rotateKey.seen < KEY_HELD_STALE_MS
+end
+
+local lastKeyProbe = ""
+
 -- One frame of the vanilla cursor's own logic, aimed where Viewpoint aims.
 local function drive(drag, playerNum)
     local player = getSpecificPlayer(playerNum)
@@ -73,6 +96,21 @@ local function drive(drag, playerNum)
     local z = math.floor(player:getZ())
     local square = getCell():getGridSquare(math.floor(wx), math.floor(wy), z)
 
+    -- Vanilla checkRotateKey, with the key state also taken from the key events.
+    local gameDown, eventDown, shift = isKeyDown(KeybindId.ROTATE_BUILDING), rotateKeyHeld(), isShiftKeyDown()
+    drag.checkRotateKey = function(self)
+        if self.chr:getPlayerNum() ~= 0 or self.chr:getJoypadBind() ~= -1 then return end
+        self:handleRotate(gameDown or eventDown, shift)
+    end
+    if VF.debugEnabled() then
+        local state = string.format("rotate key: isKeyDown=%s events=%s shift=%s", tostring(gameDown),
+            tostring(eventDown), tostring(shift))
+        if state ~= lastKeyProbe then
+            lastKeyProbe = state
+            VF.log(ID, state .. " rot=" .. tostring(drag.render3DItemRot))
+        end
+    end
+
     local toX, toY, render3D = screenToIsoX, screenToIsoY, Render3DItem
     screenToIsoX = function() return wx end
     screenToIsoY = function() return wy end
@@ -80,6 +118,7 @@ local function drive(drag, playerNum)
     drag.isLeftDown = false
     local ok, err = pcall(drag.renderOpaqueObjectsInWorld, drag, math.floor(wx), math.floor(wy), z, square)
     screenToIsoX, screenToIsoY, Render3DItem = toX, toY, render3D
+    drag.checkRotateKey = nil
     if not ok then error(err, 0) end
 
     local drop = drag.selectedSqDrop
@@ -141,6 +180,7 @@ local function cursorMenu(player, drag)
 end
 
 local function onKeyPressed(key)
+    if isRotateKey(key) then rotateKey.held = false end
     local playerNum = 0
     local drag = driven[playerNum]
     if not drag or menuShowing(playerNum) or activeCursor(playerNum) ~= drag then return end
@@ -183,6 +223,8 @@ local function install()
     Events.RenderOpaqueObjectsInWorld.Add(onRenderOpaqueObjectsInWorld)
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
+    Events.OnKeyStartPressed.Add(onRotateKeyDown)
+    Events.OnKeyKeepPressed.Add(onRotateKeyDown)
 
     if ViewpointInteract and ViewpointInteract.harvest then
         local harvest = ViewpointInteract.harvest
