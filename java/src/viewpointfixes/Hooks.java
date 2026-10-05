@@ -22,7 +22,7 @@ public final class Hooks {
     static volatile Object previewItem; // its item, to recognise it in renderMain
     private static boolean previewFailed;
     private static Field modelItems; // viewpoint.core.Frame.modelItems
-    private static long lastAddLog, lastRenderLog, lastCaptureLog;
+    private static long lastAddLog;
     private static int added;
 
     // VPF-003: the point under Viewpoint's crosshair.
@@ -76,22 +76,6 @@ public final class Hooks {
             preview = null;
             problem("preview off", t);
         }
-    }
-
-    /** Debug advice on WorldItemModelDrawer.renderMain exit: what happened to the preview's draw. */
-    public static void renderResult(Object item, Object status, Throwable thrown) {
-        if (!debug || item == null || item != previewItem) return;
-        if (thrown == null && System.currentTimeMillis() - lastRenderLog < 1000) return;
-        lastRenderLog = System.currentTimeMillis();
-        log("preview renderMain -> " + (thrown != null ? "threw " + thrown : status));
-    }
-
-    /** Debug advice on Viewpoint's RigidCapture.item exit: did it turn the preview's draw into a model? */
-    public static void captureResult(Object item, boolean accepted, Throwable thrown) {
-        if (!debug || item == null || item != previewItem) return;
-        if (thrown == null && System.currentTimeMillis() - lastCaptureLog < 1000) return;
-        lastCaptureLog = System.currentTimeMillis();
-        log("preview RigidCapture.item -> " + (thrown != null ? "threw " + thrown : accepted));
     }
 
     /**

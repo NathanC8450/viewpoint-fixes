@@ -77,7 +77,7 @@ Template:
 - Reported upstream: no
 
 ## VPF-003: inventory "Place item" (free 3D placement) does nothing
-- Status: **v5 works (checkpoint, 2026-10-05).** Preview visible in crosshair and cursor mode, R / Shift+R rotate, placed items keep the rotation (also on a table; mattress rotate (VPF-002) unaffected). Open: the preview only shows once the cursor stops moving.
+- Status: **v5 works (checkpoint, 2026-10-05).** Preview visible in crosshair and cursor mode, R / Shift+R rotate, placed items keep the rotation (also on a table; mattress rotate (VPF-002) unaffected). Preview follows the pointer in both modes.
 - Viewpoint version seen: 0.1.5a-hotfix
 - Repro: inventory → right-click an item (e.g. a radio) → Place Item. In 2D this gives a cursor where the item follows the mouse at sub-tile precision, R / Shift+R rotate it 360° (5° steps), Tab cycles surface heights, and a click places it. With Viewpoint's view on, the mode starts but nothing happens and there's no way to place.
 - Vanilla flow (`server/BuildingObjects/ISPlace3DItemCursor.lua`, 491 lines, read in full):
@@ -108,7 +108,10 @@ Template:
   - Debug probes: a Lua line on key-state change (`rotate key R: game=… raw=…`), and Java lines `preview added to Viewpoint's world items (…)` and `preview renderMain -> <status | threw …>` (`Patch_PreviewProbe`, temporary).
 - Test 4 (v4 + probes): no real change. The log showed the real cause: the `aim=` probe printed once and never again, so the driver ran for one frame only. `OnDoTileBuilding2` (non-render) fires once when the cursor starts, not per frame, so position, rotation and preview froze at the first aim point, and the place used it. Crosshair mode never started. Also confirmed: `RigidCapture.item` accepted the preview (true) and `renderMain` returned Ready, so the draw path was fine.
 - v5: the driver runs from `OnPreUIDraw` (every frame) instead. **Test 5: all works**, including R without needing Tab. Open: the preview only shows when the cursor stops moving (not yet investigated).
-- Still to do: remove `Patch_PreviewProbe`, `Patch_CaptureProbe` and `Debug/TracePlaceItem.lua` once the preview is final; crosshair Tab/Shift+F untested.
+- Preview vanishing while the pointer moves (cursor mode only): the log showed repeated "no aim point". Viewpoint's cursor pick is a GPU depth readback a frame or two late, and its Lua `Mouse.worldX/Y` returns nil when the pick's pixel is more than 3 px from the pointer, so it is nil exactly while moving (the preview was hidden and rebuilt each time). Fixed by reading `MousePick.hit` from Java (`ViewpointFixesJava.cursorX/Y`, a frame late at worst), plus a 300 ms grace on the last aim point. Crosshair mode never had the gap.
+- Rotation delay (cursor and crosshair): vanilla `handleRotate` waits 250 ms of holding before smooth rotation starts; a tap gives one 5 degree step on release. Same in 2D. Left as is.
+- Cleanup done: `Patch_PreviewProbe`, `Patch_CaptureProbe` and `Debug/TracePlaceItem.lua` removed (the committed jar still contains the probes until it is rebuilt with the game closed; harmless, they only log in debug mode).
+- Untested: crosshair Tab / Shift+F. Suggest reporting upstream: `Mouse.worldX/Y` is nil while moving; no API for a custom 3D cursor/preview.
 
 ## VPF-004: (withdrawn) "world items drawn unrotated"
 - Status: **wontfix: misdiagnosis.** I read only the call site (`renderMain(..., 0f, 0f, false)`) and missed that Viewpoint's `RigidCapture.item` applies the item's own rotation itself. The patch (forced `-1`) double-rotated items. In test 3 the radio didn't render at all. Removed.
