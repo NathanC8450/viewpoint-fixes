@@ -10,6 +10,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 | ID | Fix | File |
 |---|---|---|
 | VPF-002 | Furniture pick up / place / rotate cursor works in first and third person | `fixes/VPF_002_MoveableCursor.lua` |
+| VPF-003 | Inventory "Place item" (free 3D placement, R / Shift+R rotation) works in first and third person | `fixes/VPF_003_PlaceItemCursor.lua` |
 
 ## Layout
 

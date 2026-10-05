@@ -52,6 +52,26 @@ function VF.guard(id, fn, ...)
     return false
 end
 
+-- Key code bound to one of Viewpoint's keybinds (ids look like "keys.lootTake"), or `default`.
+-- Only ids that Viewpoint itself lists are queried: the game logs Java exceptions even inside pcall.
+local viewpointKeyCache = {}
+function VF.viewpointKey(id, default)
+    if viewpointKeyCache[id] then return viewpointKeyCache[id] end
+    local code = default
+    local keys = Viewpoint and Viewpoint.Keys
+    if keys and keys.count and keys.id and keys.get and keys.trigger then
+        for i = 0, keys.count() - 1 do
+            if tostring(keys.id(i)) == id then
+                local c = keys.trigger(keys.get(id))
+                if type(c) == "number" and c > 0 then code = c end
+                break
+            end
+        end
+    end
+    viewpointKeyCache[id] = code
+    return code
+end
+
 local function installOptions()
     if VF.page or not (PZAPI and PZAPI.ModOptions) then return end
     VF.page = PZAPI.ModOptions:create(VF.ID, getText("UI_ViewpointFixes_Page"))
