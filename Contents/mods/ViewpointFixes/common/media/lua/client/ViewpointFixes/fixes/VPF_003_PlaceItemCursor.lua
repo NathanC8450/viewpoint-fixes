@@ -58,7 +58,7 @@ local function activeCursor(playerNum)
 end
 
 -- The aimed world point: Viewpoint's mouse pick in cursor mode, else the point under the crosshair.
-local function aimPoint()
+local function pickedPoint()
     local mouse = Viewpoint and Viewpoint.Mouse
     local wx = mouse and mouse.worldX()
     local wy = mouse and mouse.worldY()
@@ -67,6 +67,22 @@ local function aimPoint()
         wx, wy = ViewpointFixesJava.aimX(), ViewpointFixesJava.aimY()
         if wx and wy then return wx, wy end
     end
+    return nil
+end
+
+-- Viewpoint's pick is nil for a few frames while the pointer moves (the preview flickered and was rebuilt each
+-- time), so keep the last point for a short grace period.
+local AIM_GRACE_MS = 300
+local lastAimX, lastAimY, lastAimAt = nil, nil, 0
+
+local function aimPoint()
+    local wx, wy = pickedPoint()
+    if wx then
+        lastAimX, lastAimY, lastAimAt = wx, wy, now()
+        return wx, wy
+    end
+    if lastAimX and now() - lastAimAt < AIM_GRACE_MS then return lastAimX, lastAimY end
+    lastAimX = nil
     return nil
 end
 
