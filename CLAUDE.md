@@ -4,7 +4,13 @@ This repo holds **unofficial fix mods for Project Viewpoint**, the first/third-p
 
 Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint works, its Lua/Java API surface and ecosystem. Then [docs/bugs.md](docs/bugs.md) for the bug log and status. Update both as you learn more.
 
-> The mod folder is still the placeholder `MyFirstMod`. Rename it once the user picks a name, and update this file and README.
+**Shape (decided 2026-10-05):** one mod, `ViewpointFixes` ("Viewpoint Fixes (Unofficial)"), with **a toggle per fix** on its Mod Options page. The project folder is still named `MyFirstMod`; the mod, Workshop junction and ids are `ViewpointFixes`.
+
+- Core: `Contents/mods/ViewpointFixes/common/media/lua/client/ViewpointFixes/ViewpointFixes.lua`. It provides `ViewpointFixes.register{id,label,tooltip}`, `isEnabled(id)`, `guard(id, fn, ...)` (pcall; an error switches the fix off for the session), `log`, `debug`, and `debugEnabled()` (the "Debug logging" tickbox).
+- Each fix: `client/ViewpointFixes/fixes/VPF_NNN_Name.lua`. It requires the core, registers itself, checks `isEnabled` at call time (so toggles apply live), and runs risky work through `guard`. Option labels go in `shared/Translate/EN/UI.json` as `UI_ViewpointFixes_VPFNNN` / `_Tooltip`.
+- Add a debug-only probe (throttled log of the values the fix depends on) to any fix built on unverified assumptions, so the user's first test run produces evidence.
+- Run `tools/luacheck.ps1` after every Lua edit. It compiles with the game's own Kahlua compiler.
+- Server-folder vanilla Lua (e.g. `BuildingObjects/*`) loads *after* client files. Don't `require` it from client files; reference it at runtime (OnGameStart or later).
 
 ## Hard rules (licence)
 
@@ -26,7 +32,8 @@ Every fix must:
 - **Be self-contained.** One file per fix, named `VPF_NNN_ShortName.lua` (or a Java class `VPF_NNN_*`), toggleable, with a header comment covering the bug, cause, Viewpoint version and retire condition.
 - **Guard and degrade.** Check that the target exists before wrapping, wrap only once (a guard flag), call the original, and use pcall where a failure could cascade. After an unexpected error the fix turns itself off and logs once, rather than spamming or breaking Viewpoint.
 - **Apply at the right time.** Viewpoint's Lua is in `42/media/lua/client` and installs some wraps at OnGameBoot/OnGameStart. Don't rely on file load order. Apply our wraps in an event after Viewpoint's, or lazily.
-- **Log** with the prefix `[ViewpointFixes]` (or the final mod name), so `tools/logs.ps1` picks it up.
+- **Log** through `ViewpointFixes.log/debug` (prefix `[ViewpointFixes] VPF_NNN:`), so `tools/logs.ps1` picks it up.
+- **Game bytecode is fair game for diagnosis.** `javap -p`/`-c` on `projectzomboid.jar` classes (an extracted copy may be in `/tmp/pzj`) is how VPF-002 was found. This rule is about the game's own code only; it does not cover Viewpoint's.
 - **Be minimal.** Fix the bug, not the design. No feature work unless the user asks.
 
 When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint Discord / Steam discussions) so it can be retired later.
@@ -36,7 +43,7 @@ When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint D
 - Game: `C:\SteamLibrary\steamapps\common\ProjectZomboid` (B42.21, its own Java runtime is **25.0.1**). The vanilla Lua is in `media/lua`, scripts in `media/scripts/generated`. These are large, so grep specific paths and never the whole game folder.
 - Workshop content: `C:\SteamLibrary\steamapps\workshop\content\108600\<id>`. Viewpoint is 3809306528, ZombieBuddy 3619862853, ZombieBuddyFix 3809837933, Controller Aim 3811577340.
 - Java fixes need **JDK 25** (only JDK 17 is installed at `C:\Program Files\Eclipse Adoptium`). Compile with `--release 25` against `projectzomboid.jar` + `ZombieBuddy.jar` (in the workshop `libs/` folder, or the game folder). The jar path should be `42/media/java/client/` for a client-only fix, and mod.info needs `require=\ZombieBuddy,\Viewpoint`, `javaJarFile` and `javaPkgName`. ZombieBuddy asks the user to approve new Java mods.
-- Logs: `%USERPROFILE%\Zomboid\console.txt` (overwritten each launch; older runs are in `Zomboid\Logs`). The project is junction-linked into `%USERPROFILE%\Zomboid\Workshop\MyFirstMod` (`tools/link.ps1`).
+- Logs: `%USERPROFILE%\Zomboid\console.txt` (overwritten each launch; older runs are in `Zomboid\Logs`). The project is junction-linked into `%USERPROFILE%\Zomboid\Workshop\ViewpointFixes` (`tools/link.ps1`).
 
 ## Project Zomboid B42 conventions
 

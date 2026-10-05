@@ -6,7 +6,7 @@
 param([switch]$All, [switch]$Perf)
 
 $log = Join-Path $env:USERPROFILE "Zomboid\console.txt"
-$pattern = "\[ViewpointFixes\]|\[MyFirstMod\]|\[Viewpoint\]|\[ZB\]|ERROR|Exception|STACK TRACE|attempted index|non-table|\(MOD:"
+$pattern = "\[ViewpointFixes\]|\[Viewpoint\]|\[ZB\]|ERROR|Exception|STACK TRACE|attempted index|non-table|\(MOD:"
 $perfLine = "\[Viewpoint\] \d+ fps \|"
 
 if ($All) {

@@ -30,3 +30,23 @@ Template:
 - Fix layer: Lua wrap. Skip harvesting when `getPlayerLoot(player:getPlayerNum())` is nil.
 - Retire when: Viewpoint guards this itself.
 - Reported upstream: no
+
+## VPF-002: furniture pick up / place / rotate cursor doesn't work
+- Status: fixing. First version written, **not yet tested in game**
+- Viewpoint version seen: 0.1.5a-hotfix
+- Repro: enter Pick up / Place / Rotate (the moveables cursor, `ISMoveableCursor`) with the view on. User confirmed: no outline at all, clicks do nothing, broken in third person too.
+- Evidence (game bytecode, method names and call sites via `javap` on `projectzomboid.jar`):
+  - `IsoCell.DoBuilding(int player, boolean isRender)` → `doBuildingInternal` fires Lua `OnDoTileBuilding2(drag, isRender, x, y, z, square)`. The tile comes from `UIManager.getPickedTile()` and z from `IsoCamera.getCameraCharacterZ()`.
+  - It's called with `isRender=true` only from `IsoCell.renderInternal` and `FBORenderCell.renderInternal` (the iso world render), and with `isRender=false` from `UIManager.update`.
+  - Vanilla `DoTileBuilding` (`server/BuildingObjects/ISBuildingObject.lua:97`) computes `canBeBuild = isValid(...)` and draws the ghost **only when isRender**. The non-render call reads the click and runs `tryBuild` only `if canBeBuild and build`.
+- Root cause: Viewpoint replaces the world render (`IsoCell.render` → `viewpoint.Hooks.skipIsoCellRender`), so the `isRender=true` call never happens. `canBeBuild` is never set, nothing is drawn, and clicks do nothing. The picked tile also comes from an isometric screen→tile mapping that doesn't match a 3D camera.
+- Fix layer: Lua. Replace the `OnDoTileBuilding2` handler while Viewpoint's view is on: feed it a tile chosen from the 3D view, run validation each frame, and draw our own indicator, since vanilla `RenderGhostTileColor` draws in iso screen space.
+- Fix: `fixes/VPF_002_MoveableCursor.lua`. It swaps vanilla `DoTileBuilding` on `OnDoTileBuilding2` for a wrapper, which only acts for `ISMoveableCursor` drags, and only while no `isRender=true` call has arrived in the last 500 ms. That makes it self-disabling in iso view or if Viewpoint fixes this upstream. For each non-render call it:
+  - takes the tile from `Viewpoint.Mouse.worldX/Y`, falling back to the tile in front of the player;
+  - validates it with `drag:isValid`;
+  - calls vanilla `DoTileBuilding(drag, false, …)` with that tile, so the click → `tryBuild` path runs.
+  It disables mouse-drag rotation (an iso screen mapping); the rotate key still works. Feedback is drawn on `OnPreUIDraw`: a tile quad projected with `isoToScreenX/Y`, plus a "Mode: object" label under the crosshair, green when valid and red otherwise. Controller (`OnDoTileBuilding3`) isn't handled yet.
+- To verify in game (with "Debug logging" ticked, the probe logs once a second): source=viewpoint vs facing; the tile tracks the crosshair and mouse cursor; `buttonDown` goes true on left click; whether the projected quad lands on the tile (`screenOfTile`). If it doesn't, Viewpoint isn't projecting `isoToScreenX/Y` and we need another way to draw.
+- Open questions (need an in-game probe): does `Viewpoint.Mouse.worldX/worldY` give the aimed world point in first person (crosshair) and third person? Is `isoToScreenX/Y` projected by Viewpoint into 3D screen space (usable to outline the tile)? Is `RenderGhostTileColor` visible at all? Does the B42 build/craft placement cursor (also `ISBuildingObject`) break the same way?
+- Retire when: Viewpoint drives `DoBuilding` render/validation itself.
+- Reported upstream: no

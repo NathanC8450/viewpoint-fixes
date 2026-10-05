@@ -1,0 +1,9 @@
+name=Viewpoint Fixes (Unofficial)
+id=ViewpointFixes
+author=nathanc
+description=Unofficial fixes for Project Viewpoint. Each fix can be switched off under Options > Mods > Viewpoint Fixes. Not affiliated with the Viewpoint authors.
+modversion=0.1.0
+poster=poster.png
+icon=icon.png
+versionMin=42.21
+require=\Viewpoint

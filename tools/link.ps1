@@ -5,7 +5,7 @@
 param([switch]$Remove)
 
 $project = Split-Path -Parent $PSScriptRoot
-$name = Split-Path -Leaf $project
+$name = "ViewpointFixes"
 $link = Join-Path $env:USERPROFILE "Zomboid\Workshop\$name"
 
 if ($Remove) {

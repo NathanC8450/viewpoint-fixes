@@ -1,45 +1,42 @@
-# My First Mod
+# Viewpoint Fixes (Unofficial)
 
-Unofficial fix mods for [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528) (Project Zomboid **Build 42**). Not affiliated with the Viewpoint authors.
+Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528) (Project Zomboid **Build 42.21**). One mod, with each fix toggleable under **Options → Mods → Viewpoint Fixes**. Not affiliated with the Viewpoint authors, and contains no Viewpoint code.
 
 - [docs/viewpoint.md](docs/viewpoint.md): how Viewpoint works and what we can hook
 - [docs/bugs.md](docs/bugs.md): bug log (VPF-NNN) and fix status
 
+## Fixes
+
+| ID | Fix | File |
+|---|---|---|
+| VPF-002 | Furniture pick up / place / rotate cursor works in first and third person | `fixes/VPF_002_MoveableCursor.lua` |
+
 ## Layout
 
 ```
-MyFirstMod/                     ← Workshop item root (upload this folder)
-├─ workshop.txt                 Steam Workshop title/description/tags
-├─ preview.png                  Workshop thumbnail (256×256)
+├─ workshop.txt, preview.png    Steam Workshop item
+├─ docs/                        Viewpoint notes and bug log
 ├─ tools/
-│  ├─ link.ps1                  Links the project into Zomboid\Workshop
-│  └─ logs.ps1                  Follows console.txt, filtered to this mod
-└─ Contents/mods/MyFirstMod/
-   ├─ 42/mod.info               Mod metadata (id, name, versionMin). B42 requires this folder
-   └─ common/                   Files shared by every game version
-      ├─ poster.png, icon.png
-      └─ media/
-         ├─ lua/client/         UI, context menus, input (runs per player)
-         ├─ lua/server/         World/game-state logic
-         ├─ lua/shared/         Loaded by both, plus Translate/EN/*.json
-         ├─ scripts/            Item and craftRecipe definitions (*.txt)
-         └─ textures/           Item_<Icon>.png icons
+│  ├─ link.ps1                  Links the project into Zomboid\Workshop\ViewpointFixes
+│  ├─ logs.ps1                  Follows console.txt (fixes, Viewpoint, ZombieBuddy, errors)
+│  └─ luacheck.ps1              Syntax-checks all Lua with the game's own compiler
+└─ Contents/mods/ViewpointFixes/
+   ├─ 42/mod.info               id=ViewpointFixes, require=\Viewpoint
+   └─ common/media/lua/
+      ├─ client/ViewpointFixes/
+      │  ├─ ViewpointFixes.lua  registration, per-fix toggles, logging, error guard
+      │  └─ fixes/VPF_NNN_*.lua one file per fix
+      └─ shared/Translate/EN/   UI.json (option labels)
 ```
-
-Keep your Lua inside a `MyFirstMod/` subfolder of each lua dir so the file names can't collide with other mods.
 
 ## Dev loop
 
-1. Link once: `.\tools\link.ps1` creates `%USERPROFILE%\Zomboid\Workshop\MyFirstMod` pointing here.
-2. Launch PZ with `-debug` (Steam → Properties → Launch Options) to get the debug menu, the Lua console, and error popups.
-3. Main menu → **Mods** → enable *My First Mod* → start a sandbox game.
-4. Follow the log in a terminal: `.\tools\logs.ps1`
-5. After editing Lua, you can reload a single file from the debug Lua console. Script `.txt`, translation, and texture changes need a return to the main menu.
-
-## Renaming the mod
-
-Replace `MyFirstMod` in the folder names, `mod.info` `id=`, the Lua folder names and `require` paths, the `module` in scripts, and the translation keys.
+1. Link once: `.\tools\link.ps1`.
+2. Before launching: `.\tools\luacheck.ps1` (needs `javac` on PATH; uses the game's bundled Java to run).
+3. Launch PZ with `-debug`, then enable **Viewpoint Fixes (Unofficial)** under Mods, alongside Viewpoint.
+4. Watch the log: `.\tools\logs.ps1`. Tick **Debug logging** on the mod's options page for per-fix probe lines.
+5. Lua changes need the game back at the main menu (or a restart) to reload.
 
 ## Publishing
 
-Main menu → **Workshop** → *Create and update items* → select *MyFirstMod*. Replace the placeholder `preview.png`/`poster.png` first. `workshop.txt` starts as `visibility=unlisted`; change it to `public` when you're ready.
+Main menu → **Workshop** → *Create and update items* → *ViewpointFixes*. Replace the placeholder `preview.png`/`poster.png` first. `workshop.txt` starts as `visibility=unlisted`.

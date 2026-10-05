@@ -1,5 +1,6 @@
 version=1
-title=My First Mod
-description=
+title=Viewpoint Fixes (Unofficial)
+description=Unofficial fixes for Project Viewpoint. Each fix can be switched off under Options > Mods > Viewpoint Fixes.
+description=Not affiliated with the Viewpoint authors. Contains no Viewpoint code.
 tags=Build 42
 visibility=unlisted
