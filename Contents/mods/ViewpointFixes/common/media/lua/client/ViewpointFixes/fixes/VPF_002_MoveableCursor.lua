@@ -305,12 +305,13 @@ local function install()
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
 
-    -- Controller: in place mode vanilla's RB cycles which object you're placing and only X rotates it.
-    -- Make RB rotate there too (the facing is what you're adjusting), as it does in rotate mode.
+    -- Controller: when A can't apply the cursor (e.g. rotating to the facing it already has), vanilla falls
+    -- through to the "sit on ground" prompt. While we drive the cursor, swallow that A press instead.
     local vanillaPress = ISMoveableCursor.onJoypadPressButton
     ISMoveableCursor.onJoypadPressButton = function(self, joypadIndex, joypadData, button)
-        if button == Joypad.RBumper and ISMoveableCursor.mode[self.player] == "place" and self.canCreate then
-            return vanillaPress(self, joypadIndex, joypadData, Joypad.XButton)
+        if button == Joypad.AButton and activeCursor(self.player) == self and hasPad(self.player)
+            and not (self.canBeBuild and self.canCreate) then
+            return
         end
         return vanillaPress(self, joypadIndex, joypadData, button)
     end
