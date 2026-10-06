@@ -2,11 +2,12 @@
 
 This repo holds **unofficial fix mods for Project Viewpoint**, the first/third-person 3D mod by ellu (workshop 3809306528, mod id `Viewpoint`). It is *not* PZ3D. The user plays with Viewpoint, finds bugs, and brings them here one at a time.
 
-Backlog / known issues: [docs/backlog.md](docs/backlog.md). Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint works, its Lua/Java API surface and ecosystem. Then [docs/bugs.md](docs/bugs.md) for the bug log and status. Update both as you learn more.
+Backlog / known issues: [docs/backlog.md](docs/backlog.md). Per-fix specs for upstream adoption: [docs/fixes/](docs/fixes/) (template: `_template.md`). Read first: [docs/viewpoint.md](docs/viewpoint.md), which covers how Viewpoint works, its Lua/Java API surface and ecosystem. Then [docs/bugs.md](docs/bugs.md) for the bug log and status. Update both as you learn more.
 
 **Shape (decided 2026-10-05):** one mod, `ViewpointFixes` ("Viewpoint Fixes (Unofficial)"), whose fixes are always on (no per-fix toggles; changed 2026-10-05). Its Mod Options page has one player-facing option, **placement helper text** (off by default). Project folder, mod id and Workshop junction are all `ViewpointFixes`.
 
 - Core: `Contents/mods/ViewpointFixes/common/media/lua/client/ViewpointFixes/ViewpointFixes.lua`. It provides `ViewpointFixes.register{id}`, `isEnabled(id)`, `guard(id, fn, ...)` (pcall; an error switches the fix off for the session), `log`, `debug`, `debugEnabled()` (true when the game is launched with `-debug`; there is no Debug option), and `helperTextEnabled()` (the helper-text option; gate any on-screen helper text on it).
+- **Adapter** (`client/ViewpointFixes/Adapter.lua`, `ViewpointFixes.Adapter`): the *only* place fixes touch Viewpoint (`Viewpoint*` globals, its Mod Options, its keys) and our Java part (`ViewpointFixesJava`). Fixes call `A.aimPoint()`, `A.setPreview()`, `A.acceptKey()` and so on, never the globals directly. This is the seam for upstream adoption: if Viewpoint adopts a fix, its logic stays and the adapter calls become direct calls (or vanish). Add new Viewpoint touch points there.
 - Each fix: `client/ViewpointFixes/fixes/VPF_NNN_Name.lua`. It requires the core, registers itself, checks `isEnabled` at call time (false only after the fix errored), and runs risky work through `guard`. Option labels go in `shared/Translate/EN/UI.json`. Keep the options page player-facing: no developer toggles.
 - Add a debug-only probe (throttled log of the values the fix depends on) to any fix built on unverified assumptions, so the user's first test run produces evidence.
 - Run `tools/luacheck.ps1` after every Lua edit. It compiles with the game's own Kahlua compiler.
@@ -36,6 +37,7 @@ Every fix must:
 - **Apply at the right time.** Viewpoint's Lua is in `42/media/lua/client` and installs some wraps at OnGameBoot/OnGameStart. Don't rely on file load order. Apply our wraps in an event after Viewpoint's, or lazily.
 - **Log** through `ViewpointFixes.log/debug` (prefix `[ViewpointFixes] VPF_NNN:`), so `tools/logs.ps1` picks it up.
 - **Game bytecode is fair game for diagnosis.** `javap -p`/`-c` on `projectzomboid.jar` classes (an extracted copy may be in `/tmp/pzj`) is how VPF-002 was found. The same goes for `Viewpoint.jar` (read-only, nothing copied; see Hard rules).
+- **Spec it for upstream.** Each fix gets `docs/fixes/VPF-NNN.md` from the template (symptom, cause, what the fix does, what upstream would do instead, check list, retire condition). The repo is MIT with an explicit grant letting the Viewpoint authors adopt any of it, so write fixes to be liftable: self-contained, logic separate from adapter calls, and standing down by themselves when Viewpoint handles the case.
 - **Be minimal.** Fix the bug, not the design. No feature work unless the user asks.
 
 When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint Discord / Steam discussions) so it can be retired later.
@@ -44,7 +46,7 @@ When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint D
 
 - Game: `C:\SteamLibrary\steamapps\common\ProjectZomboid` (B42.21, its own Java runtime is **25.0.1**). The vanilla Lua is in `media/lua`, scripts in `media/scripts/generated`. These are large, so grep specific paths and never the whole game folder.
 - Workshop content: `C:\SteamLibrary\steamapps\workshop\content\108600\<id>`. Viewpoint is 3809306528, ZombieBuddy 3619862853, ZombieBuddyFix 3809837933, Controller Aim 3811577340.
-- **Java part**: `java/src/viewpointfixes` (package `viewpointfixes`), built by `tools/build-java.ps1` into `42/media/java/client/ViewpointFixes.jar`, which is committed.
+- **Java part**: `java/src/viewpointfixes` (package `viewpointfixes`): `Bridge` (the only class Lua sees), one class per concern (`Aim`, `Keys`, `Preview`, shared `Reflect`), and one `Patch_VPF_NNN_*` class per patch, built by `tools/build-java.ps1` into `42/media/java/client/ViewpointFixes.jar`, which is committed.
   - It compiles with the installed **JDK 17** (`--release 17`, the same level as ZombieBuddy and Viewpoint) against `ZombieBuddy.jar` only.
   - The game jar is class version 69 (Java 25), which javac 17 can't read. So **game and Viewpoint classes are reached by reflection** (`Hooks.type(name)`), and `@Patch` advice parameters use primitives or `Object`.
   - Lua sees it as `ViewpointFixesJava` (`@Exposer.LuaClass`). Every Lua caller must cope with it being nil (jar not approved).

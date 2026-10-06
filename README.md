@@ -5,6 +5,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 - [docs/viewpoint.md](docs/viewpoint.md): how Viewpoint works and what we can hook
 - [docs/bugs.md](docs/bugs.md): bug log (VPF-NNN) and fix status
 - [docs/backlog.md](docs/backlog.md): known issues and to-do list
+- [docs/fixes/](docs/fixes/): one plain-language spec per fix (symptom, cause, what the fix does, how Viewpoint could adopt it)
 
 ## Fixes
 
@@ -17,7 +18,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 
 ```
 ├─ workshop.txt, preview.png    Steam Workshop item
-├─ docs/                        Viewpoint notes and bug log
+├─ docs/                        Viewpoint notes, bug log, backlog, per-fix specs
 ├─ java/src/viewpointfixes/     Java part (ZombieBuddy patches + Lua bridge `ViewpointFixesJava`)
 ├─ tools/
 │  ├─ link.ps1                  Links the project into Zomboid\Workshop\ViewpointFixes
@@ -30,6 +31,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
    └─ common/media/lua/
       ├─ client/ViewpointFixes/
       │  ├─ ViewpointFixes.lua  registration, options page, logging, error guard
+      │  ├─ Adapter.lua         the only place fixes touch Viewpoint and the Java part
       │  └─ fixes/VPF_NNN_*.lua one file per fix
       └─ shared/Translate/EN/   UI.json (option labels)
 ```

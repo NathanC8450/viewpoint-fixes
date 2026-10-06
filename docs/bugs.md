@@ -1,6 +1,6 @@
 # Viewpoint bug log
 
-One entry per bug. Keep an entry after it's fixed, and record when our fix can be retired.
+One entry per bug. Keep an entry after it's fixed, and record when our fix can be retired. This is the investigation history; the clean, adoptable write-up of each fix is in [docs/fixes/](fixes/).
 
 Status: `observed` → `diagnosed` → `fixing` → `fixed (ours)` → `retired (fixed upstream in X)` / `wontfix`
 
