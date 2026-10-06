@@ -2,6 +2,7 @@
 //
 //   ./gradlew build     compile and package build/libs/ViewpointFixes.jar
 //   ./gradlew deploy    build, then copy the jar into the mod folder (Contents/mods/ViewpointFixes/42/media/java/client)
+//   ./gradlew packageMod  build ../dist/ViewpointFixes-<modversion>.zip, the Workshop item with the jar inside
 //
 // Only ZombieBuddy.jar is needed to compile: game and Viewpoint classes are reached by reflection, so the build
 // needs neither projectzomboid.jar (class version 69) nor Viewpoint.jar. Point at your copy of ZombieBuddy.jar with
@@ -25,6 +26,29 @@ tasks.withType(JavaCompile).configureEach {
 
 jar {
     archiveFileName = 'ViewpointFixes.jar' // the name mod.info's javaJarFile expects
+}
+
+// The Workshop item as a zip (what a GitHub Release carries): workshop.txt, preview.png, LICENSE, README and
+// Contents/ with the jar from this build. Unzipped into %USERPROFILE%\Zomboid\Workshop\ it is a local Workshop item,
+// and it is the same folder layout the in-game uploader takes.
+def modInfo = file('../Contents/mods/ViewpointFixes/42/mod.info')
+def modVersion = modInfo.readLines().find { it.startsWith('modversion=') }.split('=', 2)[1].trim()
+
+tasks.register('packageMod', Zip) {
+    group = 'build'
+    description = 'Builds ../dist/ViewpointFixes-<modversion>.zip, the Workshop item with the jar inside.'
+    archiveFileName = "ViewpointFixes-${modVersion}.zip"
+    destinationDirectory = layout.projectDirectory.dir('../dist')
+    into('ViewpointFixes') {
+        from('..') { include 'workshop.txt', 'preview.png', 'LICENSE', 'README.md' }
+        into('Contents') {
+            from('../Contents') {
+                exclude '**/*.jar' // the jar comes from this build, not from whatever was deployed
+                exclude '**/.gitkeep'
+            }
+        }
+        from(jar.archiveFile) { into 'Contents/mods/ViewpointFixes/42/media/java/client' }
+    }
 }
 
 tasks.register('deploy', Copy) {
