@@ -52,8 +52,8 @@ The jar is not in git. Each release is a GitHub Release carrying `ViewpointFixes
 ## Publishing
 
 A Workshop item is a folder holding `workshop.txt`, `preview.png` and `Contents/mods/<id>/...` (what this repo's root already is). With the jar built (`cd java; .\gradlew deploy`), either:
-- upload from the game: main menu → **Workshop** → *Create and update items* → *ViewpointFixes* (the folder linked by `tools\link.ps1`; only `Contents/` is uploaded). `workshop.txt` starts as `visibility=unlisted`; replace the placeholder `preview.png`/`poster.png` first; or
-- run `.	ools\package.ps1` to make `dist\ViewpointFixes-<version>.zip` with that same layout (jar included), which is what a GitHub Release carries. Unzipping it into `%USERPROFILE%\Zomboid\Workshop\` gives a local Workshop item the game loads.
+- upload from the game: main menu → **Workshop** → *Create and update items* → *ViewpointFixes* (the folder linked by `tools\link.ps1`). `workshop.txt` starts as `visibility=unlisted`; replace the placeholder `preview.png`/`poster.png` first; or
+- run `.\tools\package.ps1` to make `dist\ViewpointFixes-<version>.zip` with that same layout (jar included), which is what a GitHub Release carries. Unzipping it into `%USERPROFILE%\Zomboid\Workshop\` gives a local Workshop item the game loads.
 
 ## Licence
 
