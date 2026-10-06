@@ -45,3 +45,7 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 ## Publishing
 
 Main menu → **Workshop** → *Create and update items* → *ViewpointFixes*. Replace the placeholder `preview.png`/`poster.png` first. `workshop.txt` starts as `visibility=unlisted`.
+
+## Licence
+
+Copyright (c) 2026 Nathan Cameron. All rights reserved. The source is public to read; no licence is granted to copy, modify or redistribute it. Project Viewpoint is a separate, proprietary mod by its own authors and is not part of this repository.
