@@ -48,4 +48,4 @@ Main menu → **Workshop** → *Create and update items* → *ViewpointFixes*. R
 
 ## Licence
 
-Copyright (c) 2026 Nathan Cameron. All rights reserved. The source is public to read; no licence is granted to copy, modify or redistribute it. Project Viewpoint is a separate, proprietary mod by its own authors and is not part of this repository.
+MIT, plus an explicit grant letting the Project Viewpoint authors adopt any part of this repository into Viewpoint with no conditions (see [LICENSE](LICENSE)). Project Viewpoint is a separate, proprietary mod by its own authors; none of its code or assets are in this repository.
