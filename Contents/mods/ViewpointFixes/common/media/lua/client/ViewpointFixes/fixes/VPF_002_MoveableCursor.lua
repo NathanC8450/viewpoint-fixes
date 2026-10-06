@@ -309,10 +309,15 @@ local function install()
     -- through to the "sit on ground" prompt. While we drive the cursor, swallow that A press instead.
     local vanillaPress = ISMoveableCursor.onJoypadPressButton
     ISMoveableCursor.onJoypadPressButton = function(self, joypadIndex, joypadData, button)
-        if button == Joypad.AButton and activeCursor(self.player) == self and hasPad(self.player)
-            and not (self.canBeBuild and self.canCreate) then
-            return
+        local driving = activeCursor(self.player) == self and hasPad(self.player)
+        local swallow = driving and button == Joypad.AButton and not (self.canBeBuild and self.canCreate)
+        if driving then
+            VF.log(ID, string.format("pad button=%s mode=%s canBeBuild=%s canCreate=%s objectIndex=%s joypadFacing=%s cursorFacing=%s%s",
+                tostring(button), tostring(ISMoveableCursor.mode[self.player]), tostring(self.canBeBuild),
+                tostring(self.canCreate), tostring(self.objectIndex), tostring(self.joypadFacing),
+                tostring(self.cursorFacing), swallow and " (A swallowed)" or ""))
         end
+        if swallow then return end
         return vanillaPress(self, joypadIndex, joypadData, button)
     end
 
