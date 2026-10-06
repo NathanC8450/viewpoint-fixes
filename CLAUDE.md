@@ -51,6 +51,7 @@ When a fix is confirmed working, suggest reporting the bug upstream (Viewpoint D
   - The game jar is class version 69 (Java 25), which javac 17 can't read. So **game and Viewpoint classes are reached by reflection** (`Hooks.type(name)`), and `@Patch` advice parameters use primitives or `Object`.
   - Lua sees it as `ViewpointFixesJava` (`@Exposer.LuaClass`). Every Lua caller must cope with it being nil (jar not approved).
   - Each Java feature switches itself off on its first reflection failure and reports why through `ViewpointFixesJava.status()`.
+  - `@Patch` advice is inlined into the patched class, so anything it calls must be a **public class with public members** (a package-private helper gives `IllegalAccessError` inside Viewpoint's own render, which then disables Viewpoint). Only `Bridge` and the class the advice calls need to be public.
   - ZombieBuddy matches `@Patch` overloads by `@Argument` index and type (minimum argument count); see its `PatchEngine.java` (source ships in the workshop folder).
   - ZombieBuddy asks the user to approve a new or changed jar on launch. Java changes need a game restart.
 - Logs: `%USERPROFILE%\Zomboid\console.txt` (overwritten each launch; older runs are in `Zomboid\Logs\logs_<date>`). **Read it yourself after the user says they tested. Never ask them to paste logs or run tools/logs.ps1.** Grep for `[ViewpointFixes]`, `[Viewpoint]`, `ERROR`, `(MOD:`. The project is junction-linked into `%USERPROFILE%\Zomboid\Workshop\ViewpointFixes` (`tools/link.ps1`).

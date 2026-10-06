@@ -3,8 +3,11 @@ package viewpointfixes;
 import java.lang.reflect.Field;
 import java.util.List;
 
-/** VPF-003 preview: a world item that is only ever drawn, never added to a square. */
-final class Preview {
+/**
+ * VPF-003 preview: a world item that is only ever drawn, never added to a square. Public because the patch's advice
+ * is inlined into Viewpoint's Models class, which can only call public members.
+ */
+public final class Preview {
     private Preview() {}
 
     private static volatile Object preview; // zombie.iso.objects.IsoWorldInventoryObject
@@ -14,7 +17,7 @@ final class Preview {
 
     /** Advice on viewpoint.models.Models.snapshot(Frame, int): draws the preview with this frame's world items. */
     @SuppressWarnings("unchecked")
-    static void add(Object frame) {
+    public static void add(Object frame) {
         Object p = preview;
         if (p == null || failed || frame == null) return;
         try {
