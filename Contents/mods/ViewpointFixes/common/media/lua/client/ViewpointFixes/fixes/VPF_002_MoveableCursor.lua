@@ -37,16 +37,8 @@ local MENU_FRESH_MS = 300
 local lastRenderCall = {} -- playerNum -> timestamp of the last isRender=true call
 local lastMenu = {}       -- playerNum -> timestamp Viewpoint last asked for menu entries during a takeover
 local target = {}         -- playerNum -> { drag, x, y, z } the cursor is on (fallback path)
-local lastProbe = {}
 
-local function now() return getTimestampMs() end
-
-local function probe(key, fmt, ...)
-    if not VF.debugEnabled() then return end
-    if lastProbe[key] and now() - lastProbe[key] < 1000 then return end
-    lastProbe[key] = now()
-    VF.log(ID, string.format(fmt, ...))
-end
+local now = VF.now
 
 local function isMoveableCursor(drag)
     local mt = getmetatable(drag)
@@ -205,8 +197,6 @@ local function cursorMenu(player, object, drag)
         table.insert(enabled, c.enabled)
     end
     ViewpointInteract.actions = actions
-    probe("menu", "menu mode=%s square=%d,%d,%d entries=%d", tostring(ISMoveableCursor.mode[playerNum]),
-        square:getX(), square:getY(), square:getZ(), #actions)
     if #actions == 0 then return { why = "nothing for this cursor here" } end
     return { title = modeTitle(ISMoveableCursor.mode[playerNum]), labels = labels, enabled = enabled,
              seen = #actions }
@@ -236,41 +226,17 @@ local function onDoTileBuilding(drag, isRender, x, y, z, square)
     return DoTileBuilding(drag, isRender, x, y, z, square)
 end
 
--- Viewpoint's "take" key (F by default). Looked up once from Viewpoint's own keybind list, using only ids it
--- reports itself: the game logs Java exceptions even inside pcall, so we never guess an id.
-local cachedAcceptKey
-local function acceptKey()
-    if cachedAcceptKey then return cachedAcceptKey end
-    cachedAcceptKey = Keyboard.KEY_F
-    local keys = Viewpoint and Viewpoint.Keys
-    if not (keys and keys.count and keys.id and keys.get and keys.trigger) then return cachedAcceptKey end
-    local ids = {}
-    for i = 0, keys.count() - 1 do
-        local id = tostring(keys.id(i))
-        table.insert(ids, id)
-        local lower = string.lower(id)
-        if string.find(lower, "take", 1, true) and not string.find(lower, "all", 1, true) then
-            local code = keys.trigger(keys.get(id))
-            if type(code) == "number" and code > 0 then cachedAcceptKey = code end
-        end
-    end
-    VF.debug(ID, "Viewpoint key ids: " .. table.concat(ids, ", ") .. "; accept key " ..
-        Keyboard.getKeyName(cachedAcceptKey))
-    return cachedAcceptKey
-end
-
 -- Fallback when Viewpoint shows no menu for the target: the key accepts the cursor's current choice.
 local function onKeyPressed(key)
     local playerNum = 0
     local t = target[playerNum]
-    if not t or key ~= acceptKey() or menuShowing(playerNum) then return end
+    if not t or key ~= VF.acceptKey() or menuShowing(playerNum) then return end
     if activeCursor(playerNum) ~= t.drag then return end
     VF.guard(ID, perform, t.drag, t.square, function() end)
 end
 
 -- Fallback label, only while Viewpoint's menu isn't showing.
 local function drawLabel(playerNum, t)
-    if not VF.helperTextEnabled() then return end
     if activeCursor(playerNum) ~= t.drag or menuShowing(playerNum) then return end
     local drag = t.drag
     local mode = ISMoveableCursor.mode[playerNum]
@@ -282,10 +248,8 @@ local function drawLabel(playerNum, t)
         text = text .. " " .. getText("UI_ViewpointFixes_Facing", tostring(facing))
     end
     local ok = drag.canBeBuild == true and drag.canCreate == true
-    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_Accept", Keyboard.getKeyName(acceptKey())) end
-    local r, g, b = ok and 0.4 or 1, ok and 1 or 0.35, ok and 0.4 or 0.35
-    getTextManager():DrawStringCentre(UIFont.Medium, getCore():getScreenWidth() / 2,
-        getCore():getScreenHeight() / 2 + 40, text, r, g, b, 1)
+    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_Accept", Keyboard.getKeyName(VF.acceptKey())) end
+    VF.drawHelperText(text, ok)
 end
 
 local function onPreUIDraw()

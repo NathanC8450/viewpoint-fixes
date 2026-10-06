@@ -1,5 +1,5 @@
 --[[
-Developer call tracer (inert unless "Debug logging" is ticked).
+Developer call tracer (inert unless the game runs with -debug).
 
 Wraps methods on a Lua table so that, while armed, every call is logged with readable arguments and return
 values, indented by call depth:

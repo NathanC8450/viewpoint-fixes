@@ -19,6 +19,8 @@ function VF.helperTextEnabled()
     return VF.helperOption ~= nil and VF.helperOption:getValue() == true
 end
 
+function VF.now() return getTimestampMs() end
+
 function VF.debug(fixId, msg)
     if VF.debugEnabled() then VF.log(fixId, msg) end
 end
@@ -70,6 +72,20 @@ function VF.viewpointKey(id, default)
     end
     viewpointKeyCache[id] = code
     return code
+end
+
+-- Viewpoint's take / accept key (F by default).
+function VF.acceptKey()
+    return VF.viewpointKey("keys.lootTake", Keyboard.KEY_F)
+end
+
+-- One line of helper text under the crosshair, green when `ok`, red otherwise. Drawn only when the player has
+-- ticked the helper-text option.
+function VF.drawHelperText(text, ok)
+    if not VF.helperTextEnabled() then return end
+    local r, g, b = ok and 0.4 or 1, ok and 1 or 0.35, ok and 0.4 or 0.35
+    getTextManager():DrawStringCentre(UIFont.Medium, getCore():getScreenWidth() / 2,
+        getCore():getScreenHeight() / 2 + 40, text, r, g, b, 1)
 end
 
 local function installOptions()
