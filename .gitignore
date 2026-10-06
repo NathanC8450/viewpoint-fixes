@@ -11,3 +11,8 @@ desktop.ini
 
 # Local build/release output
 dist/
+
+# Java build output (the jar is built, not committed: ./gradlew deploy puts it in the mod folder)
+java/build/
+java/.gradle/
+Contents/mods/ViewpointFixes/42/media/java/client/*.jar

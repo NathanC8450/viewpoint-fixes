@@ -19,15 +19,15 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 ```
 ├─ workshop.txt, preview.png    Steam Workshop item
 ├─ docs/                        Viewpoint notes, bug log, backlog, per-fix specs
-├─ java/src/viewpointfixes/     Java part (ZombieBuddy patches + Lua bridge `ViewpointFixesJava`)
+├─ java/                        Java part: Gradle project, sources in src/main/java/viewpointfixes
+│                               (ZombieBuddy patches + Lua bridge `ViewpointFixesJava`)
 ├─ tools/
 │  ├─ link.ps1                  Links the project into Zomboid\Workshop\ViewpointFixes
-│  ├─ build-java.ps1            Builds java/src into 42/media/java/client/ViewpointFixes.jar
 │  ├─ logs.ps1                  Follows console.txt (fixes, Viewpoint, ZombieBuddy, errors)
 │  └─ luacheck.ps1              Syntax-checks all Lua with the game's own compiler
 └─ Contents/mods/ViewpointFixes/
    ├─ 42/mod.info               id=ViewpointFixes, require=\ZombieBuddy,\Viewpoint, javaJarFile
-   ├─ 42/media/java/client/     ViewpointFixes.jar (built, committed)
+   ├─ 42/media/java/client/     ViewpointFixes.jar (built by `./gradlew deploy`, not committed)
    └─ common/media/lua/
       ├─ client/ViewpointFixes/
       │  ├─ ViewpointFixes.lua  registration, options page, logging, error guard
@@ -39,10 +39,15 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 ## Dev loop
 
 1. Link once: `.\tools\link.ps1`.
-2. Before launching: `.\tools\luacheck.ps1` (needs `javac` on PATH; uses the game's bundled Java to run). After Java changes: `.\tools\build-java.ps1`, then restart the game (Java doesn't reload at the main menu). ZombieBuddy asks once to approve a changed jar.
-3. Launch PZ with `-debug`, then enable **Viewpoint Fixes (Unofficial)** under Mods, alongside Viewpoint.
-4. Debug logging follows the `-debug` launch flag (per-fix probe lines). Everything lands in `%USERPROFILE%\Zomboid\console.txt`; `.\tools\logs.ps1` is optional, for watching it live.
-5. Lua changes need the game back at the main menu (or a restart) to reload.
+2. Build the Java part (needs JDK 17 and `ZombieBuddy.jar`; the Gradle wrapper fetches Gradle itself): `cd java`, then `.\gradlew deploy`. This puts `ViewpointFixes.jar` in the mod folder, so close the game first (it holds the jar open). If `ZombieBuddy.jar` isn't at the default Steam path, pass `-PzombieBuddyJar=<path>`. Restart the game after Java changes (Java doesn't reload at the main menu); ZombieBuddy asks once to approve a changed jar.
+3. After Lua edits: `.\tools\luacheck.ps1` (needs `javac` on PATH; uses the game's bundled Java to run).
+4. Launch PZ with `-debug`, then enable **Viewpoint Fixes (Unofficial)** under Mods, alongside Viewpoint.
+5. Debug logging follows the `-debug` launch flag (per-fix probe lines). Everything lands in `%USERPROFILE%\Zomboid\console.txt`; `.\tools\logs.ps1` is optional, for watching it live.
+6. Lua changes need the game back at the main menu (or a restart) to reload.
+
+## Releases and contributing
+
+The jar is not in git. Each release is a GitHub Release carrying the built `ViewpointFixes.jar`; see [CHANGELOG.md](CHANGELOG.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Publishing
 
