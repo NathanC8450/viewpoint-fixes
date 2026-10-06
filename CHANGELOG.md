@@ -2,7 +2,7 @@
 
 Notable changes per release. The jar is attached to each GitHub Release.
 
-## Unreleased
+## 0.1.0 - 2026-10-06
 
 - VPF-002: furniture pick up / place / rotate works with the 3D view on (mouse, keyboard and controller).
 - VPF-003: inventory Place Item works with the 3D view on, with a 3D preview, R / Shift+R rotation and F (or A on a controller) to place.
