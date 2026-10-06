@@ -305,12 +305,16 @@ local function install()
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
 
-    -- Controller: when A can't apply the cursor (e.g. rotating to the facing it already has), vanilla falls
-    -- through to the "sit on ground" prompt. While we drive the cursor, swallow that A press instead.
+    -- Controller: when A can't apply the cursor, vanilla falls through to the "sit on ground" prompt. While we
+    -- drive the cursor, swallow that A press instead.
     local vanillaPress = ISMoveableCursor.onJoypadPressButton
     ISMoveableCursor.onJoypadPressButton = function(self, joypadIndex, joypadData, button)
         local driving = activeCursor(self.player) == self and hasPad(self.player)
-        local swallow = driving and button == Joypad.AButton and not (self.canBeBuild and self.canCreate)
+        -- Rotating to the facing it already has still reports canCreate, then vanilla ends in "sit on ground".
+        local same = driving and ISMoveableCursor.mode[self.player] == "rotate" and self.currentMoveProps ~= nil
+            and self.origMoveProps ~= nil and self.currentMoveProps.spriteName == self.origMoveProps.spriteName
+            and not self.currentMoveProps:canRotateDirection()
+        local swallow = driving and button == Joypad.AButton and (same or not (self.canBeBuild and self.canCreate))
         if driving then
             VF.log(ID, string.format("pad button=%s mode=%s canBeBuild=%s canCreate=%s objectIndex=%s joypadFacing=%s cursorFacing=%s%s",
                 tostring(button), tostring(ISMoveableCursor.mode[self.player]), tostring(self.canBeBuild),
