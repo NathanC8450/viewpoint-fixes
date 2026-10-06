@@ -252,7 +252,44 @@ local function drawLabel(playerNum, t)
     VF.drawHelperText(text, ok)
 end
 
+-- Controller: vanilla's pad cursor (xJoypad/yJoypad, set up by OnDoTileBuilding3 from the iso render) never
+-- starts under Viewpoint, so the d-pad errors on a nil and A finds canBeBuild unset and falls through to
+-- the "sit on ground" prompt. Keep the pad cursor on the tile under the crosshair every frame; vanilla's own
+-- button handling (LB mode, RB rotate, A accept, B cancel) then works as designed.
+local function hasPad(playerNum)
+    return JoypadState ~= nil and JoypadState.players ~= nil and JoypadState.players[playerNum + 1] ~= nil
+end
+
+local function padTile(player)
+    local z = math.floor(player:getZ())
+    local jx = ViewpointFixesJava and ViewpointFixesJava.aimX()
+    local jy = ViewpointFixesJava and ViewpointFixesJava.aimY()
+    if jx and jy then return math.floor(jx), math.floor(jy), z end
+    return aimedTile(player)
+end
+
+local lastPadLog = 0
+local function drivePad(playerNum)
+    local drag = activeCursor(playerNum)
+    if not drag or not hasPad(playerNum) then return end
+    local player = getSpecificPlayer(playerNum)
+    local x, y, z = padTile(player)
+    drag.xJoypad, drag.yJoypad, drag.zJoypad = x, y, z
+    local sq = squareAt(x, y, z)
+    drag.isLeftDown, drag.build, drag.square = false, false, sq
+    drag.canBeBuild = sq ~= nil and drag:isValid(sq, drag.north) == true
+    if VF.debugEnabled() and now() - lastPadLog > 1000 then
+        lastPadLog = now()
+        VF.debug(ID, string.format("pad mode=%s tile=%d,%d,%d canBeBuild=%s canCreate=%s objects=%s",
+            tostring(ISMoveableCursor.mode[playerNum]), x, y, z, tostring(drag.canBeBuild),
+            tostring(drag.canCreate), tostring(type(drag.objectListCache) == "table" and #drag.objectListCache)))
+    end
+end
+
 local function onPreUIDraw()
+    for playerNum = 0, 3 do
+        if hasPad(playerNum) then VF.guard(ID, drivePad, playerNum) end
+    end
     for playerNum, t in pairs(target) do
         if not VF.guard(ID, drawLabel, playerNum, t) then target[playerNum] = nil end
     end
