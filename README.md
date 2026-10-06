@@ -47,11 +47,13 @@ Unofficial fixes for [Project Viewpoint](https://steamcommunity.com/sharedfiles/
 
 ## Releases and contributing
 
-The jar is not in git. Each release is a GitHub Release carrying the built `ViewpointFixes.jar`; see [CHANGELOG.md](CHANGELOG.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
+The jar is not in git. Each release is a GitHub Release carrying `ViewpointFixes-<version>.zip` (the Workshop item with the built jar inside); see [CHANGELOG.md](CHANGELOG.md). Contributions: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Publishing
 
-Main menu → **Workshop** → *Create and update items* → *ViewpointFixes*. Replace the placeholder `preview.png`/`poster.png` first. `workshop.txt` starts as `visibility=unlisted`.
+A Workshop item is a folder holding `workshop.txt`, `preview.png` and `Contents/mods/<id>/...` (what this repo's root already is). With the jar built (`cd java; .\gradlew deploy`), either:
+- upload from the game: main menu → **Workshop** → *Create and update items* → *ViewpointFixes* (the folder linked by `tools\link.ps1`; only `Contents/` is uploaded). `workshop.txt` starts as `visibility=unlisted`; replace the placeholder `preview.png`/`poster.png` first; or
+- run `.	ools\package.ps1` to make `dist\ViewpointFixes-<version>.zip` with that same layout (jar included), which is what a GitHub Release carries. Unzipping it into `%USERPROFILE%\Zomboid\Workshop\` gives a local Workshop item the game loads.
 
 ## Licence
 

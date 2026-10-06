@@ -1,6 +1,9 @@
 version=1
 title=Viewpoint Fixes (Unofficial)
-description=Unofficial fixes for Project Viewpoint. Each fix can be switched off under Options > Mods > Viewpoint Fixes.
-description=Not affiliated with the Viewpoint authors. Contains no Viewpoint code.
+description=Unofficial fixes for Project Viewpoint (Project Zomboid Build 42). Requires Viewpoint and ZombieBuddy.
+description=
+description=Makes furniture pick up / place / rotate and inventory Place Item (with a 3D preview and rotation) work in Viewpoint's 3D view, with mouse, keyboard and controller. One option under Options > Mods > Viewpoint Fixes shows optional helper text while placing.
+description=
+description=Not affiliated with the Viewpoint authors. Contains no Viewpoint code. Source and issues: https://github.com/NathanC8450/viewpoint-fixes
 tags=Build 42
 visibility=unlisted
