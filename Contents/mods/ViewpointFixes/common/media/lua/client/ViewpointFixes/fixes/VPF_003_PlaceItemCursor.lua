@@ -228,9 +228,24 @@ local function onPreUIDraw()
     if not any then pauseLoot(false) end
 end
 
+-- Controller: vanilla places with A through a flag the game's own render sets (drag.build), which never runs
+-- under Viewpoint, so A does nothing. Place on A while we're driving the cursor; RB/LB rotation already works.
+local function wrapJoypadAccept()
+    local vanilla = ISPlace3DItemCursor.onJoypadPressButton
+    ISPlace3DItemCursor.onJoypadPressButton = function(self, joypadIndex, joypadData, button)
+        local playerNum = joypadData and joypadData.player or 0
+        if button == Joypad.AButton and driven[playerNum] == self and not self.joypadPositionActive then
+            VF.guard(ID, place, self)
+            return
+        end
+        return vanilla(self, joypadIndex, joypadData, button)
+    end
+end
+
 local function install()
     if VF.vpf003Installed or not ISPlace3DItemCursor then return end
     VF.vpf003Installed = true
+    wrapJoypadAccept()
     Events.RenderOpaqueObjectsInWorld.Add(onRenderOpaqueObjectsInWorld)
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)

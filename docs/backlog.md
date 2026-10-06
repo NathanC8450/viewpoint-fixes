@@ -11,7 +11,7 @@ Known issues and things to look at later. Move an item to docs/bugs.md (as a VPF
 
 ## To do
 
-- **Controller support**: VPF-002 first pass written (pad cursor follows the crosshair tile; untested). VPF-003 on the pad not started. d-pad tile nudging, multi-object selection on one tile and an on-screen prompt are not handled.
+- **Controller support**: VPF-002 first pass written (pad cursor follows the crosshair tile; untested). VPF-003 pad: A now places (untested). VPF-002 place mode: RB now rotates like X (untested). Furniture place mode has no 3D preview on the pad (vanilla draws a 2D ghost only); a 3D furniture preview would be a new feature, not a fix. d-pad tile nudging, multi-object selection on one tile and an on-screen prompt are not handled.
 - Rebuild the jar with the game closed (`tools/build-java.ps1`) so the committed jar no longer contains the removed probe patches; commit it.
 - Report to Viewpoint upstream (Discord / Steam discussions): `Viewpoint.Mouse.worldX/Y` is nil while the pointer moves; no API for custom 3D cursors or previews; the place-item and move cursors don't work at all under Viewpoint.
 - VPF-001 (optional, see docs/bugs.md).
