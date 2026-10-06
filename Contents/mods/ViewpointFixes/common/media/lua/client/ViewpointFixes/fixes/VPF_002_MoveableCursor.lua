@@ -21,10 +21,12 @@ Seen:  Viewpoint 0.1.5a-hotfix, game 42.21. Verified in game 2026-10-05: pick up
 Retire when Viewpoint handles placement cursors itself.
 ]]
 require "ViewpointFixes/ViewpointFixes"
+require "ViewpointFixes/Adapter"
 -- ISMoveableCursor lives in the server Lua folder, which loads after client files,
 -- so it is only referenced at runtime (from OnGameStart on).
 
 local VF = ViewpointFixes
+local A = VF.Adapter
 local ID = "VPF_002"
 
 VF.register({ id = ID })
@@ -78,10 +80,8 @@ end
 -- front of the player.
 local function aimedTile(player)
     local z = math.floor(player:getZ())
-    local mouse = Viewpoint and Viewpoint.Mouse
-    local wx = mouse and mouse.worldX()
-    local wy = mouse and mouse.worldY()
-    if wx and wy then return math.floor(wx), math.floor(wy), z end
+    local wx, wy = A.mousePoint()
+    if wx then return math.floor(wx), math.floor(wy), z end
     local dir = player:getForwardDirection()
     return math.floor(player:getX() + dir:getX()), math.floor(player:getY() + dir:getY()), z
 end
@@ -196,7 +196,7 @@ local function cursorMenu(player, object, drag)
         table.insert(labels, c.name)
         table.insert(enabled, c.enabled)
     end
-    ViewpointInteract.actions = actions
+    A.setInteractActions(actions)
     if #actions == 0 then return { why = "nothing for this cursor here" } end
     return { title = modeTitle(ISMoveableCursor.mode[playerNum]), labels = labels, enabled = enabled,
              seen = #actions }
@@ -230,7 +230,7 @@ end
 local function onKeyPressed(key)
     local playerNum = 0
     local t = target[playerNum]
-    if not t or key ~= VF.acceptKey() or menuShowing(playerNum) then return end
+    if not t or key ~= A.acceptKey() or menuShowing(playerNum) then return end
     if activeCursor(playerNum) ~= t.drag then return end
     VF.guard(ID, perform, t.drag, t.square, function() end)
 end
@@ -248,7 +248,7 @@ local function drawLabel(playerNum, t)
         text = text .. " " .. getText("UI_ViewpointFixes_Facing", tostring(facing))
     end
     local ok = drag.canBeBuild == true and drag.canCreate == true
-    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_Accept", Keyboard.getKeyName(VF.acceptKey())) end
+    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_Accept", Keyboard.getKeyName(A.acceptKey())) end
     VF.drawHelperText(text, ok)
 end
 
@@ -262,9 +262,8 @@ end
 
 local function padTile(player)
     local z = math.floor(player:getZ())
-    local jx = ViewpointFixesJava and ViewpointFixesJava.aimX()
-    local jy = ViewpointFixesJava and ViewpointFixesJava.aimY()
-    if jx and jy then return math.floor(jx), math.floor(jy), z end
+    local jx, jy = A.crosshairPoint()
+    if jx then return math.floor(jx), math.floor(jy), z end
     return aimedTile(player)
 end
 
@@ -305,16 +304,15 @@ local function install()
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
 
-    if ViewpointInteract and ViewpointInteract.harvest then
-        local harvest = ViewpointInteract.harvest
-        ViewpointInteract.harvest = function(player, object)
+    if A.hasInteractMenu() then
+        A.wrapInteractHarvest(function(harvest, player, object)
             local drag = player and activeCursor(player:getPlayerNum())
             if drag then
                 local ok, result = VF.guard(ID, cursorMenu, player, object, drag)
                 if ok and result then return result end
             end
             return harvest(player, object)
-        end
+        end)
         VF.log(ID, "installed (with Viewpoint interaction menu)")
     else
         VF.log(ID, "installed (ViewpointInteract.harvest not found; key fallback only)")

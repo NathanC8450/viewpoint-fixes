@@ -20,9 +20,11 @@ Note:  Tab (surface height) doesn't work yet; see docs/backlog.md.
 Seen:  Viewpoint 0.1.5a-hotfix, game 42.21. Verified in game 2026-10-05 with a radio, in crosshair and cursor mode.
 Retire when Viewpoint fires (or replaces) RenderOpaqueObjectsInWorld for placement cursors.
 ]]require "ViewpointFixes/ViewpointFixes"
+require "ViewpointFixes/Adapter"
 -- ISPlace3DItemCursor lives in the server Lua folder (loads after client files): referenced at runtime only.
 
 local VF = ViewpointFixes
+local A = VF.Adapter
 local ID = "VPF_003"
 
 VF.register({ id = ID })
@@ -54,29 +56,13 @@ local function activeCursor(playerNum)
     return nil
 end
 
--- The aimed world point: Viewpoint's mouse pick in cursor mode (the Java read also covers the frames where its
--- Lua Mouse is nil because the pointer moved), else the point under the crosshair.
-local function pickedPoint()
-    local mouse = Viewpoint and Viewpoint.Mouse
-    local wx = mouse and mouse.worldX()
-    local wy = mouse and mouse.worldY()
-    if wx and wy then return wx, wy end
-    if ViewpointFixesJava then
-        wx, wy = ViewpointFixesJava.cursorX(), ViewpointFixesJava.cursorY()
-        if wx and wy then return wx, wy end
-        wx, wy = ViewpointFixesJava.aimX(), ViewpointFixesJava.aimY()
-        if wx and wy then return wx, wy end
-    end
-    return nil
-end
-
 -- Viewpoint's pick can be missing for a few frames (the preview would flicker and be rebuilt each time), so
 -- keep the last point for a short grace period.
 local AIM_GRACE_MS = 300
 local lastAimX, lastAimY, lastAimAt = nil, nil, 0
 
 local function aimPoint()
-    local wx, wy = pickedPoint()
+    local wx, wy = A.aimPoint()
     if wx then
         lastAimX, lastAimY, lastAimAt = wx, wy, now()
         return wx, wy
@@ -87,23 +73,16 @@ local function aimPoint()
 end
 
 -- Viewpoint's loot menu takes R and Tab while it shows; pause it while placing, then restore the user's choice.
-local function viewpointLootSetting()
-    local options = PZAPI and PZAPI.ModOptions and PZAPI.ModOptions:getOptions("Viewpoint")
-    local option = options and options:getOption("lootMenu")
-    if option then return option:getValue() == true end
-    return true
-end
-
 local function pauseLoot(paused)
-    if paused == lootPaused or not (Viewpoint and Viewpoint.Loot and Viewpoint.Loot.setEnabled) then return end
+    if paused == lootPaused or not A.canSetLootMenu() then return end
     lootPaused = paused
-    Viewpoint.Loot.setEnabled(not paused and viewpointLootSetting())
+    A.setLootMenu(not paused and A.lootMenuSetting())
     VF.debug(ID, paused and "Viewpoint loot menu paused while placing" or "Viewpoint loot menu restored")
 end
 
 -- The preview: a throwaway copy of the item (the world-object constructor rewrites the item it's given).
 local function showPreview(playerNum, drag)
-    if not ViewpointFixesJava then return end
+    if not A.hasJava() then return end
     local item = drag.items[1]
     local g = ghost[playerNum]
     if not g or g.source ~= item then
@@ -112,12 +91,12 @@ local function showPreview(playerNum, drag)
     end
     if not g.copy then return end
     g.copy:setWorldZRotation(drag:clamp(drag.render3DItemRot or 0))
-    ViewpointFixesJava.setPreview(g.copy, drag.selectedSqDrop, drag.render3DItemXOffset or 0.5,
+    A.setPreview(g.copy, drag.selectedSqDrop, drag.render3DItemXOffset or 0.5,
         drag.render3DItemYOffset or 0.5, drag.render3DItemZOffset or 0)
 end
 
 local function hidePreview(playerNum)
-    if ghost[playerNum] and ViewpointFixesJava then ViewpointFixesJava.clearPreview() end
+    if ghost[playerNum] then A.clearPreview() end
     ghost[playerNum] = nil
 end
 
@@ -134,11 +113,8 @@ local function drive(drag, playerNum)
     local core = getCore()
     local rotateKey, rotateAlt = core:getKey(KeybindId.ROTATE_BUILDING), core:getAltKey(KeybindId.ROTATE_BUILDING)
     local rotating, reverse = isKeyDown(KeybindId.ROTATE_BUILDING), isShiftKeyDown()
-    if ViewpointFixesJava then
-        local raw = ViewpointFixesJava.rawKeyDown
-        rotating = rotating or raw(rotateKey) or raw(rotateAlt)
-        reverse = reverse or raw(Keyboard.KEY_LSHIFT) or raw(Keyboard.KEY_RSHIFT)
-    end
+    rotating = rotating or A.rawKeyDown(rotateKey) or A.rawKeyDown(rotateAlt)
+    reverse = reverse or A.rawKeyDown(Keyboard.KEY_LSHIFT) or A.rawKeyDown(Keyboard.KEY_RSHIFT)
     drag.checkRotateKey = function(self)
         if self.chr:getPlayerNum() ~= 0 or self.chr:getJoypadBind() ~= -1 then return end
         self:handleRotate(rotating, reverse)
@@ -195,7 +171,7 @@ end
 -- Viewpoint's take key places the item.
 local function onKeyPressed(key)
     local drag = driven[0]
-    if drag and activeCursor(0) == drag and key == VF.acceptKey() then
+    if drag and activeCursor(0) == drag and key == A.acceptKey() then
         VF.guard(ID, place, drag)
     end
 end
@@ -208,7 +184,7 @@ local function drawLabel(drag)
         text = text .. "  " .. getText("UI_ViewpointFixes_Surface", drag.surfaceSelected, #drag.surfacesPossible)
     end
     local ok = drag.canBeBuild == true
-    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_PlaceKeys", Keyboard.getKeyName(VF.acceptKey())) end
+    if ok then text = text .. "  " .. getText("UI_ViewpointFixes_PlaceKeys", Keyboard.getKeyName(A.acceptKey())) end
     VF.drawHelperText(text, ok)
 end
 
@@ -249,8 +225,8 @@ local function install()
     Events.RenderOpaqueObjectsInWorld.Add(onRenderOpaqueObjectsInWorld)
     Events.OnPreUIDraw.Add(onPreUIDraw)
     Events.OnKeyPressed.Add(onKeyPressed)
-    if ViewpointFixesJava then
-        VF.log(ID, "installed; java status: " .. tostring(ViewpointFixesJava.status()))
+    if A.hasJava() then
+        VF.log(ID, "installed; java status: " .. tostring(A.javaStatus()))
     else
         VF.log(ID, "installed without the Java part (ZombieBuddy approval?): cursor mode only, no preview")
     end

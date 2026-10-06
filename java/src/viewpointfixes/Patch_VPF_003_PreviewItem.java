@@ -8,9 +8,9 @@ import me.zed_0xff.zombie_buddy.Patch;
  * as Models.snapshot starts lets Viewpoint draw it like any dropped item, at its live offsets.
  */
 @Patch(className = "viewpoint.models.Models", methodName = "snapshot")
-public class Patch_PreviewItem {
+public class Patch_VPF_003_PreviewItem {
     @Patch.OnEnter
     public static void enter(@Patch.Argument(0) Object frame) {
-        Hooks.addPreview(frame);
+        Preview.add(frame);
     }
 }

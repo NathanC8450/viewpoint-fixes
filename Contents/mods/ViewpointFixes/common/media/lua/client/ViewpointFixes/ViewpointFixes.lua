@@ -1,4 +1,4 @@
--- Shared plumbing for every fix: registration, the Mod Options page (one player-facing option: the placement
+-- Shared plumbing for every fix (Viewpoint itself is only touched through Adapter.lua): registration, the Mod Options page (one player-facing option: the placement
 -- helper text), logging, and an error guard that switches a misbehaving fix off instead of breaking the game.
 ViewpointFixes = ViewpointFixes or { fixes = {}, order = {} }
 local VF = ViewpointFixes
@@ -52,31 +52,6 @@ function VF.guard(id, fn, ...)
         VF.log(id, "switched off for this session after an error: " .. tostring(a))
     end
     return false
-end
-
--- Key code bound to one of Viewpoint's keybinds (ids look like "keys.lootTake"), or `default`.
--- Only ids that Viewpoint itself lists are queried: the game logs Java exceptions even inside pcall.
-local viewpointKeyCache = {}
-function VF.viewpointKey(id, default)
-    if viewpointKeyCache[id] then return viewpointKeyCache[id] end
-    local code = default
-    local keys = Viewpoint and Viewpoint.Keys
-    if keys and keys.count and keys.id and keys.get and keys.trigger then
-        for i = 0, keys.count() - 1 do
-            if tostring(keys.id(i)) == id then
-                local c = keys.trigger(keys.get(id))
-                if type(c) == "number" and c > 0 then code = c end
-                break
-            end
-        end
-    end
-    viewpointKeyCache[id] = code
-    return code
-end
-
--- Viewpoint's take / accept key (F by default).
-function VF.acceptKey()
-    return VF.viewpointKey("keys.lootTake", Keyboard.KEY_F)
 end
 
 -- One line of helper text under the crosshair, green when `ok`, red otherwise. Drawn only when the player has
